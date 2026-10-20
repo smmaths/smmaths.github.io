@@ -228,14 +228,37 @@
   document.addEventListener('scroll', navmenuScrollspy);
 
   /**
-   * Hero: points on the near side of the globe, then a route that untangles
-   * along the shorter arcs of the sphere.
+   * Hero: each load shows either the cooling curve or the route on the sphere.
+   */
+  const heroSvg = document.querySelector('#hero-world');
+  const heroAnneal = document.querySelector('#hero-anneal');
+  const heroScenePick = document.querySelector('#hero-scene');
+  if (heroSvg && heroAnneal && heroScenePick) {
+    const useRoute = Math.random() < 0.5;
+    const heroLabel = useRoute
+      ? 'A globe. Points appear, and a crossed route untangles into a short circuit along the sphere.'
+      : 'A globe. A rough random path cools into a smooth curve along one meridian.';
+    heroSvg.setAttribute('aria-label', heroLabel);
+    const heroTitle = heroSvg.querySelector('title');
+    if (heroTitle) heroTitle.textContent = heroLabel;
+    if (useRoute) {
+      heroAnneal.remove();
+      heroScenePick.removeAttribute('hidden');
+    } else {
+      heroScenePick.remove();
+      heroAnneal.removeAttribute('hidden');
+    }
+  }
+
+  /**
+   * Hero route: points on the near side of the globe, then a route that
+   * untangles along the shorter arcs of the sphere.
    */
   const heroRoute = document.querySelector('#hero-route');
   const heroFlashes = document.querySelector('#hero-flashes');
-  const heroPoints = document.querySelector('#hero-points');
+  const heroRoutePoints = document.querySelector('#hero-points');
   const heroScene = document.querySelector('#hero-scene');
-  if (heroRoute && heroFlashes && heroPoints && heroScene) {
+  if (heroRoute && heroFlashes && heroRoutePoints && heroScene) {
     const CX = 320;
     const CY = 320;
     const GLOBE_R = 200;
@@ -404,7 +427,7 @@
     }
 
     function paintPoints(pts, ageOf) {
-      const pointNodes = heroPoints.children;
+      const pointNodes = heroRoutePoints.children;
       const flashNodes = heroFlashes.children;
       for (let i = 0; i < pts.length; i++) {
         const age = ageOf(i);
@@ -431,17 +454,17 @@
     }
 
     function ensureNodes(n) {
-      while (heroPoints.children.length < n) {
+      while (heroRoutePoints.children.length < n) {
         const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         const flash = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         point.setAttribute('r', '0');
         flash.setAttribute('r', '0');
         flash.setAttribute('opacity', '0');
-        heroPoints.appendChild(point);
+        heroRoutePoints.appendChild(point);
         heroFlashes.appendChild(flash);
       }
-      while (heroPoints.children.length > n) {
-        heroPoints.removeChild(heroPoints.lastChild);
+      while (heroRoutePoints.children.length > n) {
+        heroRoutePoints.removeChild(heroRoutePoints.lastChild);
         heroFlashes.removeChild(heroFlashes.lastChild);
       }
     }
@@ -449,8 +472,8 @@
     function layoutNodes(pts) {
       for (let i = 0; i < pts.length; i++) {
         const p = project(pts[i]);
-        heroPoints.children[i].setAttribute('cx', p.x.toFixed(1));
-        heroPoints.children[i].setAttribute('cy', p.y.toFixed(1));
+        heroRoutePoints.children[i].setAttribute('cx', p.x.toFixed(1));
+        heroRoutePoints.children[i].setAttribute('cy', p.y.toFixed(1));
         heroFlashes.children[i].setAttribute('cx', p.x.toFixed(1));
         heroFlashes.children[i].setAttribute('cy', p.y.toFixed(1));
       }
@@ -542,6 +565,210 @@
 
       function start() {
         if (!rafId) rafId = window.requestAnimationFrame(tick);
+      }
+
+      const heroSection = document.querySelector('#home');
+      if (heroSection && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          running = entries[0].isIntersecting;
+          if (running) start();
+        });
+        observer.observe(heroSection);
+      }
+      start();
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && running) start();
+      });
+    }
+  }
+
+  /**
+   * Hero path: a Brownian bridge cooled by simulated annealing onto one meridian.
+   */
+  const heroPath = document.querySelector('#hero-anneal-path');
+  const heroAnnealPoints = document.querySelector('#hero-anneal-points');
+  if (heroPath && heroAnnealPoints) {
+    const CX = 320;
+    const CY = 320;
+    const RX = 88;
+    const RY = 200;
+    const PHI0 = -60 * Math.PI / 180;
+    const PHI1 = 50 * Math.PI / 180;
+    const N = 72;
+    const phases = [
+      { name: 'blank', ms: 900 },
+      { name: 'anneal', ms: 8600 },
+      { name: 'hold', ms: 2600 },
+      { name: 'fade', ms: 700 }
+    ];
+    const samples = [];
+    for (let i = 0; i < N; i++) {
+      const phi = PHI0 + (PHI1 - PHI0) * (i / (N - 1));
+      const tx = -RX * Math.sin(phi);
+      const ty = RY * Math.cos(phi);
+      const len = Math.hypot(tx, ty) || 1;
+      samples.push({
+        x: CX + RX * Math.cos(phi),
+        y: CY + RY * Math.sin(phi),
+        nx: ty / len,
+        ny: -tx / len,
+        tx: tx / len,
+        ty: ty / len
+      });
+    }
+
+    let normal = new Array(N).fill(0);
+    let tangent = new Array(N).fill(0);
+    let spareGaussian = null;
+
+    function gaussian() {
+      if (spareGaussian !== null) {
+        const value = spareGaussian;
+        spareGaussian = null;
+        return value;
+      }
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = Math.random();
+      v = Math.random();
+      const mag = Math.sqrt(-2 * Math.log(u));
+      spareGaussian = mag * Math.sin(2 * Math.PI * v);
+      return mag * Math.cos(2 * Math.PI * v);
+    }
+
+    function brownianBridge(scale) {
+      const walk = [0];
+      for (let i = 1; i < N; i++) walk.push(walk[i - 1] + gaussian());
+      const end = walk[N - 1];
+      let max = 0;
+      const bridge = walk.map((value, i) => {
+        const pinned = value - end * (i / (N - 1));
+        max = Math.max(max, Math.abs(pinned));
+        return pinned;
+      });
+      return bridge.map((value) => (max ? (value * scale) / max : 0));
+    }
+
+    function beginWalk() {
+      normal = brownianBridge(46);
+      tangent = brownianBridge(16);
+      normal[0] = normal[N - 1] = 0;
+      tangent[0] = tangent[N - 1] = 0;
+    }
+
+    function temperatureOf(u) {
+      const hotUntil = 0.62;
+      if (u < hotUntil) return 1 - 0.1 * (u / hotUntil);
+      const v = (u - hotUntil) / (1 - hotUntil);
+      return 0.9 * Math.pow(1 - v, 2.2);
+    }
+
+    function coolWalk(temperature, dt) {
+      const pull = 0.12 + 4.2 * (1 - temperature) * (1 - temperature);
+      const sigmaN = 26 * Math.sqrt(temperature);
+      const sigmaT = 9 * Math.sqrt(temperature);
+      const jitter = Math.sqrt(dt);
+      for (let i = 1; i < N - 1; i++) {
+        normal[i] += -pull * normal[i] * dt + gaussian() * sigmaN * jitter;
+        tangent[i] += -pull * tangent[i] * dt + gaussian() * sigmaT * jitter;
+        normal[i] = Math.max(-64, Math.min(64, normal[i]));
+        tangent[i] = Math.max(-24, Math.min(24, tangent[i]));
+      }
+      const smooth = Math.min(0.4, dt * (4 + 16 * (1 - temperature)));
+      if (smooth > 0) {
+        const nextN = normal.slice();
+        const nextT = tangent.slice();
+        for (let i = 1; i < N - 1; i++) {
+          nextN[i] = normal[i] * (1 - smooth) + 0.5 * (normal[i - 1] + normal[i + 1]) * smooth;
+          nextT[i] = tangent[i] * (1 - smooth) + 0.5 * (tangent[i - 1] + tangent[i + 1]) * smooth;
+        }
+        normal = nextN;
+        tangent = nextT;
+      }
+      normal[0] = normal[N - 1] = 0;
+      tangent[0] = tangent[N - 1] = 0;
+    }
+
+    function render(opacity) {
+      let d = '';
+      for (let i = 0; i < N; i++) {
+        const sample = samples[i];
+        let x = sample.x + sample.nx * normal[i] + sample.tx * tangent[i];
+        let y = sample.y + sample.ny * normal[i] + sample.ty * tangent[i];
+        const dx = x - CX;
+        const dy = y - CY;
+        const dist = Math.hypot(dx, dy);
+        const maxR = 193;
+        if (dist > maxR) {
+          x = CX + (dx * maxR) / dist;
+          y = CY + (dy * maxR) / dist;
+        }
+        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }
+      heroPath.setAttribute('d', d);
+      heroPath.style.opacity = String(opacity);
+    }
+
+    function showFinal() {
+      normal = new Array(N).fill(0);
+      tangent = new Array(N).fill(0);
+      render(1);
+    }
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      showFinal();
+    } else {
+      let phaseIndex = 0;
+      let phaseStarted = performance.now();
+      let last = phaseStarted;
+      let running = true;
+      let rafId = 0;
+
+      function enterPhase(name) {
+        if (name === 'anneal') beginWalk();
+        if (name === 'hold') showFinal();
+      }
+
+      enterPhase(phases[0].name);
+
+      function frame(now) {
+        if (!running || document.hidden) {
+          rafId = 0;
+          last = now;
+          return;
+        }
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        let elapsed = now - phaseStarted;
+        if (elapsed >= phases[phaseIndex].ms) {
+          phaseIndex = (phaseIndex + 1) % phases.length;
+          phaseStarted = now;
+          elapsed = 0;
+          enterPhase(phases[phaseIndex].name);
+        }
+        const phase = phases[phaseIndex];
+        const u = phase.ms ? elapsed / phase.ms : 1;
+        if (phase.name === 'blank') {
+          render(0);
+        } else if (phase.name === 'anneal') {
+          const temperature = temperatureOf(u);
+          coolWalk(temperature, dt);
+          const pathOpacity = Math.min(1, u / 0.12);
+          render(pathOpacity);
+        } else if (phase.name === 'hold') {
+          render(1);
+        } else {
+          render(1 - u);
+        }
+        rafId = window.requestAnimationFrame(frame);
+      }
+
+      function start() {
+        if (!rafId) {
+          last = performance.now();
+          rafId = window.requestAnimationFrame(frame);
+        }
       }
 
       const heroSection = document.querySelector('#home');
