@@ -228,192 +228,320 @@
   document.addEventListener('scroll', navmenuScrollspy);
 
   /**
-   * Hero path: a Brownian bridge cooled by simulated annealing onto one meridian.
+   * Hero: points on the near side of the globe, then a route that untangles
+   * along the shorter arcs of the sphere.
    */
-  const heroPath = document.querySelector('#hero-anneal-path');
-  const heroPoints = document.querySelector('#hero-anneal-points');
-  if (heroPath && heroPoints) {
+  const heroRoute = document.querySelector('#hero-route');
+  const heroFlashes = document.querySelector('#hero-flashes');
+  const heroPoints = document.querySelector('#hero-points');
+  const heroScene = document.querySelector('#hero-scene');
+  if (heroRoute && heroFlashes && heroPoints && heroScene) {
     const CX = 320;
     const CY = 320;
-    const RX = 88;
-    const RY = 200;
-    const PHI0 = -60 * Math.PI / 180;
-    const PHI1 = 50 * Math.PI / 180;
-    const N = 72;
-    const phases = [
-      { name: 'blank', ms: 900 },
-      { name: 'anneal', ms: 8600 },
-      { name: 'hold', ms: 2600 },
-      { name: 'fade', ms: 700 }
-    ];
-    const samples = [];
-    for (let i = 0; i < N; i++) {
-      const phi = PHI0 + (PHI1 - PHI0) * (i / (N - 1));
-      const tx = -RX * Math.sin(phi);
-      const ty = RY * Math.cos(phi);
-      const len = Math.hypot(tx, ty) || 1;
-      samples.push({
-        x: CX + RX * Math.cos(phi),
-        y: CY + RY * Math.sin(phi),
-        nx: ty / len,
-        ny: -tx / len,
-        tx: tx / len,
-        ty: ty / len
-      });
+    const GLOBE_R = 200;
+    const MAX_ANGLE = 58 * Math.PI / 180;
+    const STRIKE_GAP = 150;
+    const STRIKE_LEAD = 525;
+    const DRAW_PAUSE = 380;
+    const DRAW_MS = 760;
+    const FRAME_MS = 280;
+    const HOLD_MS = 5000;
+    const FADE_MS = 850;
+
+    function dot(a, b) {
+      return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 
-    let normal = new Array(N).fill(0);
-    let tangent = new Array(N).fill(0);
-    let spareGaussian = null;
-
-    function gaussian() {
-      if (spareGaussian !== null) {
-        const value = spareGaussian;
-        spareGaussian = null;
-        return value;
-      }
-      let u = 0;
-      let v = 0;
-      while (u === 0) u = Math.random();
-      v = Math.random();
-      const mag = Math.sqrt(-2 * Math.log(u));
-      spareGaussian = mag * Math.sin(2 * Math.PI * v);
-      return mag * Math.cos(2 * Math.PI * v);
+    function dist(a, b) {
+      return Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
     }
 
-    function brownianBridge(scale) {
-      const walk = [0];
-      for (let i = 1; i < N; i++) walk.push(walk[i - 1] + gaussian());
-      const end = walk[N - 1];
-      let max = 0;
-      const bridge = walk.map((value, i) => {
-        const pinned = value - end * (i / (N - 1));
-        max = Math.max(max, Math.abs(pinned));
-        return pinned;
-      });
-      return bridge.map((value) => (max ? (value * scale) / max : 0));
+    function project(p) {
+      return { x: CX + GLOBE_R * p.x, y: CY - GLOBE_R * p.y };
     }
 
-    function beginWalk() {
-      normal = brownianBridge(46);
-      tangent = brownianBridge(16);
-      normal[0] = normal[N - 1] = 0;
-      tangent[0] = tangent[N - 1] = 0;
+    function slerp(a, b, t) {
+      const omega = dist(a, b);
+      if (omega < 1e-4) return a;
+      const s = Math.sin(omega);
+      const w1 = Math.sin((1 - t) * omega) / s;
+      const w2 = Math.sin(t * omega) / s;
+      return {
+        x: w1 * a.x + w2 * b.x,
+        y: w1 * a.y + w2 * b.y,
+        z: w1 * a.z + w2 * b.z
+      };
     }
 
-    function temperatureOf(u) {
-      const hotUntil = 0.62;
-      if (u < hotUntil) return 1 - 0.1 * (u / hotUntil);
-      const v = (u - hotUntil) / (1 - hotUntil);
-      return 0.9 * Math.pow(1 - v, 2.2);
-    }
-
-    function coolWalk(temperature, dt) {
-      const pull = 0.12 + 4.2 * (1 - temperature) * (1 - temperature);
-      const sigmaN = 26 * Math.sqrt(temperature);
-      const sigmaT = 9 * Math.sqrt(temperature);
-      const jitter = Math.sqrt(dt);
-      for (let i = 1; i < N - 1; i++) {
-        normal[i] += -pull * normal[i] * dt + gaussian() * sigmaN * jitter;
-        tangent[i] += -pull * tangent[i] * dt + gaussian() * sigmaT * jitter;
-        normal[i] = Math.max(-64, Math.min(64, normal[i]));
-        tangent[i] = Math.max(-24, Math.min(24, tangent[i]));
-      }
-      const smooth = Math.min(0.4, dt * (4 + 16 * (1 - temperature)));
-      if (smooth > 0) {
-        const nextN = normal.slice();
-        const nextT = tangent.slice();
-        for (let i = 1; i < N - 1; i++) {
-          nextN[i] = normal[i] * (1 - smooth) + 0.5 * (normal[i - 1] + normal[i + 1]) * smooth;
-          nextT[i] = tangent[i] * (1 - smooth) + 0.5 * (tangent[i - 1] + tangent[i + 1]) * smooth;
+    function placePoints(n) {
+      const z0 = Math.cos(MAX_ANGLE);
+      for (let min = 0.42; min >= 0.22; min -= 0.05) {
+        const pts = [];
+        for (let guard = 0; guard < 5000 && pts.length < n; guard++) {
+          const z = z0 + Math.random() * (1 - z0);
+          const theta = Math.random() * Math.PI * 2;
+          const radial = Math.sqrt(Math.max(0, 1 - z * z));
+          const p = { x: radial * Math.cos(theta), y: radial * Math.sin(theta), z: z };
+          if (pts.every((q) => dist(q, p) >= min)) pts.push(p);
         }
-        normal = nextN;
-        tangent = nextT;
+        if (pts.length === n) return pts;
       }
-      normal[0] = normal[N - 1] = 0;
-      tangent[0] = tangent[N - 1] = 0;
+      return [];
     }
 
-    function render(opacity) {
+    function tourLength(order, pts) {
+      let sum = 0;
+      for (let i = 0; i < order.length; i++) {
+        sum += dist(pts[order[i]], pts[order[(i + 1) % order.length]]);
+      }
+      return sum;
+    }
+
+    function badTour(pts) {
+      const around = pts.map((_, i) => i).sort((a, b) =>
+        Math.atan2(pts[a].y, pts[a].x) - Math.atan2(pts[b].y, pts[b].x));
+      const half = Math.floor(around.length / 2);
+      const mixed = [];
+      for (let i = 0; i < half; i++) {
+        mixed.push(around[i], around[i + half]);
+      }
+      if (around.length % 2) mixed.push(around[around.length - 1]);
+      return mixed;
+    }
+
+    function moveDelta(order, pts, i, j) {
+      const n = order.length;
+      const a = pts[order[(i - 1 + n) % n]];
+      const b = pts[order[i]];
+      const c = pts[order[j]];
+      const d = pts[order[(j + 1) % n]];
+      return dist(a, c) + dist(b, d) - dist(a, b) - dist(c, d);
+    }
+
+    function reverseSegment(order, i, j) {
+      while (i < j) {
+        const tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+        i += 1;
+        j -= 1;
+      }
+    }
+
+    function polish(order, pts) {
+      const extra = [];
+      const n = order.length;
+      for (let guard = 0; guard < 40; guard++) {
+        let best = -0.0015;
+        let bi = -1;
+        let bj = -1;
+        for (let i = 0; i < n; i++) {
+          for (let span = 2; span <= n - 2; span++) {
+            const j = i + span - 1;
+            if (j >= n) break;
+            const change = moveDelta(order, pts, i, j);
+            if (change < best) {
+              best = change;
+              bi = i;
+              bj = j;
+            }
+          }
+        }
+        if (bi < 0) break;
+        reverseSegment(order, bi, bj);
+        extra.push(order.slice());
+      }
+      return extra;
+    }
+
+    function anneal(pts, order) {
+      const frames = [order.slice()];
+      const steps = 200;
+      const n = order.length;
+      for (let step = 0; step < steps; step++) {
+        const temperature = 0.5 * Math.pow(0.02, step / (steps - 1));
+        const span = 2 + Math.floor(Math.random() * (n - 3));
+        const i = Math.floor(Math.random() * (n - span + 1));
+        const j = i + span - 1;
+        const change = moveDelta(order, pts, i, j);
+        if (change < 0 || Math.random() < Math.exp(-change / temperature)) {
+          reverseSegment(order, i, j);
+          frames.push(order.slice());
+        }
+      }
+      let kept = frames;
+      if (frames.length > 24) {
+        kept = [];
+        const stride = (frames.length - 1) / 23;
+        for (let i = 0; i < 24; i++) kept.push(frames[Math.round(i * stride)]);
+      }
+      return kept.concat(polish(order, pts));
+    }
+
+    function pathData(order, pts) {
       let d = '';
-      for (let i = 0; i < N; i++) {
-        const sample = samples[i];
-        let x = sample.x + sample.nx * normal[i] + sample.tx * tangent[i];
-        let y = sample.y + sample.ny * normal[i] + sample.ty * tangent[i];
-        const dx = x - CX;
-        const dy = y - CY;
-        const dist = Math.hypot(dx, dy);
-        const maxR = 193;
-        if (dist > maxR) {
-          x = CX + (dx * maxR) / dist;
-          y = CY + (dy * maxR) / dist;
+      let drawing = false;
+      for (let i = 0; i < order.length; i++) {
+        const a = pts[order[i]];
+        const b = pts[order[(i + 1) % order.length]];
+        const steps = Math.max(8, Math.ceil(dist(a, b) / (Math.PI / 48)));
+        for (let s = 0; s <= steps; s++) {
+          if (s === 0 && drawing) continue;
+          const p = project(slerp(a, b, s / steps));
+          d += (drawing ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+          drawing = true;
         }
-        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
       }
-      heroPath.setAttribute('d', d);
-      heroPath.style.opacity = String(opacity);
+      return d;
     }
 
-    function showFinal() {
-      normal = new Array(N).fill(0);
-      tangent = new Array(N).fill(0);
-      render(1);
+    function buildCycle() {
+      const n = 9 + Math.floor(Math.random() * 3);
+      const pts = placePoints(n);
+      const order = badTour(pts);
+      const frames = anneal(pts, order);
+      return { pts, frames };
+    }
+
+    function paintPoints(pts, ageOf) {
+      const pointNodes = heroPoints.children;
+      const flashNodes = heroFlashes.children;
+      for (let i = 0; i < pts.length; i++) {
+        const age = ageOf(i);
+        const point = pointNodes[i];
+        const flash = flashNodes[i];
+        if (age < 0) {
+          point.setAttribute('r', '0');
+          flash.setAttribute('opacity', '0');
+          continue;
+        }
+        const pop = Math.min(1, age / 220);
+        const eased = 1 - Math.pow(1 - pop, 3);
+        point.setAttribute('r', (6.5 * eased).toFixed(2));
+        const flashAge = age / 380;
+        if (flashAge < 1) {
+          flash.setAttribute('r', (8 + flashAge * 30).toFixed(1));
+          flash.setAttribute('opacity', (0.85 * (1 - flashAge)).toFixed(3));
+        } else {
+          flash.setAttribute('opacity', '0');
+        }
+        const hot = Math.max(0, 1 - age / 260);
+        point.setAttribute('fill', hot > 0.35 ? '#ffffff' : '#47b2e4');
+      }
+    }
+
+    function ensureNodes(n) {
+      while (heroPoints.children.length < n) {
+        const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const flash = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        point.setAttribute('r', '0');
+        flash.setAttribute('r', '0');
+        flash.setAttribute('opacity', '0');
+        heroPoints.appendChild(point);
+        heroFlashes.appendChild(flash);
+      }
+      while (heroPoints.children.length > n) {
+        heroPoints.removeChild(heroPoints.lastChild);
+        heroFlashes.removeChild(heroFlashes.lastChild);
+      }
+    }
+
+    function layoutNodes(pts) {
+      for (let i = 0; i < pts.length; i++) {
+        const p = project(pts[i]);
+        heroPoints.children[i].setAttribute('cx', p.x.toFixed(1));
+        heroPoints.children[i].setAttribute('cy', p.y.toFixed(1));
+        heroFlashes.children[i].setAttribute('cx', p.x.toFixed(1));
+        heroFlashes.children[i].setAttribute('cy', p.y.toFixed(1));
+      }
+    }
+
+    let cycle = null;
+    let cycleStarted = 0;
+
+    function startCycle(now) {
+      cycle = buildCycle();
+      cycleStarted = now;
+      ensureNodes(cycle.pts.length);
+      layoutNodes(cycle.pts);
+      heroRoute.setAttribute('d', pathData(cycle.frames[0], cycle.pts));
+      heroRoute.style.opacity = '0';
+      heroRoute.style.strokeDasharray = '';
+      heroRoute.style.strokeDashoffset = '0';
+      heroScene.style.opacity = '1';
+    }
+
+    function showTour(order, pts, drawU) {
+      heroRoute.setAttribute('d', pathData(order, pts));
+      if (drawU < 1) {
+        const length = heroRoute.getTotalLength();
+        heroRoute.style.strokeDasharray = String(length);
+        heroRoute.style.strokeDashoffset = String(length * (1 - drawU));
+      } else {
+        heroRoute.style.strokeDasharray = '';
+        heroRoute.style.strokeDashoffset = '0';
+      }
     }
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
-      showFinal();
+      startCycle(0);
+      const last = cycle.frames[cycle.frames.length - 1];
+      showTour(last, cycle.pts, 1);
+      paintPoints(cycle.pts, () => 1000);
     } else {
-      let phaseIndex = 0;
-      let phaseStarted = performance.now();
-      let last = phaseStarted;
-      let running = true;
       let rafId = 0;
+      let running = true;
+      let pausedAt = 0;
 
-      function enterPhase(name) {
-        if (name === 'anneal') beginWalk();
-        if (name === 'hold') showFinal();
-      }
-
-      enterPhase(phases[0].name);
-
-      function frame(now) {
+      function tick(now) {
         if (!running || document.hidden) {
+          if (!pausedAt) pausedAt = now;
           rafId = 0;
-          last = now;
           return;
         }
-        const dt = Math.min(0.05, (now - last) / 1000);
-        last = now;
-        let elapsed = now - phaseStarted;
-        if (elapsed >= phases[phaseIndex].ms) {
-          phaseIndex = (phaseIndex + 1) % phases.length;
-          phaseStarted = now;
-          elapsed = 0;
-          enterPhase(phases[phaseIndex].name);
+        if (pausedAt) {
+          cycleStarted += now - pausedAt;
+          pausedAt = 0;
         }
-        const phase = phases[phaseIndex];
-        const u = phase.ms ? elapsed / phase.ms : 1;
-        if (phase.name === 'blank') {
-          render(0);
-        } else if (phase.name === 'anneal') {
-          const temperature = temperatureOf(u);
-          coolWalk(temperature, dt);
-          const pathOpacity = Math.min(1, u / 0.12);
-          render(pathOpacity);
-        } else if (phase.name === 'hold') {
-          render(1);
+        if (!cycle) startCycle(now);
+        const t = now - cycleStarted;
+        const n = cycle.pts.length;
+        const strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
+        const drawStart = strikeEnd + DRAW_PAUSE;
+        const drawEnd = drawStart + DRAW_MS;
+        const searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
+        const holdEnd = searchEnd + HOLD_MS;
+        const fadeEnd = holdEnd + FADE_MS;
+
+        paintPoints(cycle.pts, (i) => t - (STRIKE_LEAD + i * STRIKE_GAP));
+
+        if (t < drawStart) {
+          heroRoute.style.opacity = '0';
+        } else if (t < drawEnd) {
+          heroRoute.style.opacity = '1';
+          showTour(cycle.frames[0], cycle.pts, (t - drawStart) / DRAW_MS);
+        } else if (t < searchEnd) {
+          heroRoute.style.opacity = '1';
+          const index = Math.min(
+            cycle.frames.length - 1,
+            1 + Math.floor((t - drawEnd) / FRAME_MS)
+          );
+          showTour(cycle.frames[index], cycle.pts, 1);
+        } else if (t < holdEnd) {
+          heroRoute.style.opacity = '1';
+          showTour(cycle.frames[cycle.frames.length - 1], cycle.pts, 1);
+        } else if (t < fadeEnd) {
+          showTour(cycle.frames[cycle.frames.length - 1], cycle.pts, 1);
+          heroScene.style.opacity = String(1 - (t - holdEnd) / FADE_MS);
         } else {
-          render(1 - u);
+          startCycle(now);
         }
-        rafId = window.requestAnimationFrame(frame);
+        rafId = window.requestAnimationFrame(tick);
       }
 
       function start() {
-        if (!rafId) {
-          last = performance.now();
-          rafId = window.requestAnimationFrame(frame);
-        }
+        if (!rafId) rafId = window.requestAnimationFrame(tick);
       }
 
       const heroSection = document.querySelector('#home');
