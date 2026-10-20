@@ -432,14 +432,13 @@
   }
 
   /**
-   * About: spaghetti, six points, every noisy link, then a wide hexagon walked once.
+   * About: spaghetti finds six points, then those same strands straighten into the hexagon.
    */
   const aboutSvg = document.querySelector('#about-model');
   const aboutSpaghetti = document.querySelector('#about-spaghetti');
-  const aboutChords = document.querySelector('#about-chords');
   const aboutWalk = document.querySelector('#about-walk');
   const aboutPoints = document.querySelector('#about-points');
-  if (aboutSvg && aboutSpaghetti && aboutChords && aboutWalk && aboutPoints) {
+  if (aboutSvg && aboutSpaghetti && aboutWalk && aboutPoints) {
     const svgNS = 'http://www.w3.org/2000/svg';
     const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
     const pts = [
@@ -451,19 +450,17 @@
       { x: 340, y: 248 }
     ];
     const center = { x: 540, y: 155 };
-    const samplesPerChord = 20;
     const phases = [
       { name: 'spaghetti', ms: 2200 },
       { name: 'find', ms: 3200 },
-      { name: 'pairs', ms: 2200 },
-      { name: 'hex', ms: 2800 },
+      { name: 'resolve', ms: 4200 },
       { name: 'walk', ms: 2200 },
       { name: 'hold', ms: 1400 },
-      { name: 'return', ms: 1100 }
+      { name: 'return', ms: 1600 }
     ];
 
-    let spare = null;
     const ball = { x: 540, y: 155, rx: 470, ry: 138 };
+    const strands = [];
 
     function mulberry32(seed) {
       return function () {
@@ -482,11 +479,39 @@
       return nx * nx + ny * ny <= 1;
     }
 
-    function addStrand(points) {
+    function pathData(points) {
+      return points.map((point, index) => (index === 0 ? 'M' : 'L') + point.x.toFixed(1) + ' ' + point.y.toFixed(1)).join(' ');
+    }
+
+    function addNoise(points) {
       const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', pathData(points));
       path.setAttribute('opacity', '0.72');
-      path.setAttribute('d', points.map((point, index) => (index === 0 ? 'M' : 'L') + point.x.toFixed(1) + ' ' + point.y.toFixed(1)).join(' '));
       aboutSpaghetti.appendChild(path);
+      strands.push({ role: 'noise', points: points, path: path });
+    }
+
+    function addEdge(from, to, wobbleScale, primary) {
+      const steps = 18;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const points = [];
+      const straight = [];
+      for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const envelope = Math.sin(t * Math.PI);
+        const wobble = envelope * ((rand() - 0.5) * wobbleScale + Math.sin(t * Math.PI * 3) * (rand() - 0.5) * wobbleScale * 0.55);
+        straight.push({ x: from.x + dx * t, y: from.y + dy * t });
+        points.push({ x: from.x + dx * t + nx * wobble, y: from.y + dy * t + ny * wobble });
+      }
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', pathData(points));
+      path.setAttribute('opacity', '0.72');
+      aboutSpaghetti.appendChild(path);
+      strands.push({ role: 'edge', points: points, straight: straight, path: path, primary: primary });
     }
 
     pts.forEach((point, index) => {
@@ -514,29 +539,9 @@
           right.push(next);
         }
         const strand = left.concat([point], right);
-        if (strand.length > 3) addStrand(strand);
+        if (strand.length > 3) addNoise(strand);
       }
     });
-
-    for (let i = 0; i < pts.length; i++) {
-      const from = pts[i];
-      const to = pts[(i + 1) % pts.length];
-      const strand = [from];
-      const steps = 7;
-      for (let s = 1; s < steps; s++) {
-        const t = s / steps;
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const len = Math.hypot(dx, dy) || 1;
-        const wobble = Math.sin(t * Math.PI) * (rand() - 0.5) * 48;
-        strand.push({
-          x: from.x + dx * t + (-dy / len) * wobble,
-          y: from.y + dy * t + (dx / len) * wobble
-        });
-      }
-      strand.push(to);
-      addStrand(strand);
-    }
 
     for (let n = 0; n < 40; n++) {
       const angle = rand() * Math.PI * 2;
@@ -552,36 +557,13 @@
         if (!insideBall(x, y)) break;
         strand.push({ x: x, y: y });
       }
-      if (strand.length > 3) addStrand(strand);
+      if (strand.length > 3) addNoise(strand);
     }
 
-    function gaussian() {
-      if (spare !== null) {
-        const value = spare;
-        spare = null;
-        return value;
-      }
-      let u = 0;
-      while (u === 0) u = Math.random();
-      const v = Math.random();
-      const mag = Math.sqrt(-2 * Math.log(u));
-      spare = mag * Math.sin(2 * Math.PI * v);
-      return mag * Math.cos(2 * Math.PI * v);
-    }
-
-    function bridge(scale) {
-      const walk = [0];
-      for (let i = 1; i < samplesPerChord; i++) walk.push(walk[i - 1] + gaussian());
-      const end = walk[samplesPerChord - 1];
-      let max = 0;
-      const values = walk.map((value, i) => {
-        const pinned = value - end * (i / (samplesPerChord - 1));
-        max = Math.max(max, Math.abs(pinned));
-        return pinned;
-      });
-      const scaled = values.map((value) => (max ? (value * scale) / max : 0));
-      scaled[0] = scaled[samplesPerChord - 1] = 0;
-      return scaled;
+    for (let i = 0; i < pts.length; i++) {
+      const from = pts[i];
+      const to = pts[(i + 1) % pts.length];
+      [96, 72, 48].forEach((scale, index) => addEdge(from, to, scale, index === 0));
     }
 
     const pointNodes = pts.map((point, index) => {
@@ -613,75 +595,42 @@
       return group;
     });
 
-    const chords = [];
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      const path = document.createElementNS(svgNS, 'path');
-      path.setAttribute('stroke-width', '4.125');
-      path.setAttribute('opacity', '0');
-      aboutChords.appendChild(path);
-      chords.push({
-        i: i,
-        j: j,
-        boundary: true,
-        path: path,
-        normal: new Array(samplesPerChord).fill(0)
-      });
-    }
-
     let walkLength = 0;
     aboutWalk.setAttribute('d', pts.map((point, index) => (index === 0 ? 'M' : 'L') + point.x + ' ' + point.y).join(' ') + ' Z');
     walkLength = aboutWalk.getTotalLength();
     aboutWalk.style.opacity = '0';
 
-    function disturb(scale) {
-      chords.forEach((chord) => {
-        chord.normal = bridge(scale);
-      });
+    function smoothstep(u) {
+      const t = Math.max(0, Math.min(1, u));
+      return t * t * (3 - 2 * t);
     }
 
-    function coolChords(temperature, dt) {
-      const pull = 0.2 + 4 * (1 - temperature) * (1 - temperature);
-      const sigma = 18 * Math.sqrt(Math.max(temperature, 0));
-      const jitter = Math.sqrt(dt);
-      const smooth = Math.min(0.45, dt * (4 + 16 * (1 - temperature)));
-      chords.forEach((chord) => {
-        const next = chord.normal.slice();
-        for (let k = 1; k < samplesPerChord - 1; k++) {
-          next[k] += -pull * chord.normal[k] * dt + gaussian() * sigma * jitter;
-          next[k] = Math.max(-36, Math.min(36, next[k]));
+    function edgeColor(t) {
+      const r = Math.round(55 + (71 - 55) * t);
+      const g = Math.round(81 + (178 - 81) * t);
+      const b = Math.round(126 + (228 - 126) * t);
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    function renderStrands(settle, noiseOpacity) {
+      strands.forEach((strand) => {
+        if (strand.role === 'noise') {
+          strand.path.setAttribute('opacity', String(0.72 * noiseOpacity));
+          return;
         }
-        if (smooth > 0) {
-          const smoothed = next.slice();
-          for (let k = 1; k < samplesPerChord - 1; k++) {
-            smoothed[k] = next[k] * (1 - smooth) + 0.5 * (next[k - 1] + next[k + 1]) * smooth;
-          }
-          chord.normal = smoothed;
+        const drawn = strand.points.map((point, index) => ({
+          x: point.x + (strand.straight[index].x - point.x) * settle,
+          y: point.y + (strand.straight[index].y - point.y) * settle
+        }));
+        strand.path.setAttribute('d', pathData(drawn));
+        if (strand.primary) {
+          strand.path.setAttribute('opacity', String(0.72 + 0.28 * settle));
+          strand.path.setAttribute('stroke', edgeColor(settle));
+          strand.path.setAttribute('stroke-width', String(1.35 + (4.125 - 1.35) * settle));
         } else {
-          chord.normal = next;
+          strand.path.setAttribute('opacity', String(0.72 * (1 - settle)));
         }
-        chord.normal[0] = chord.normal[samplesPerChord - 1] = 0;
       });
-    }
-
-    function drawChord(chord) {
-      const from = pts[chord.i];
-      const to = pts[chord.j];
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len;
-      const ny = dx / len;
-      let d = '';
-      for (let k = 0; k < samplesPerChord; k++) {
-        const t = k / (samplesPerChord - 1);
-        let x = from.x + dx * t + nx * chord.normal[k];
-        let y = from.y + dy * t + ny * chord.normal[k];
-        x = Math.max(20, Math.min(1060, x));
-        y = Math.max(18, Math.min(302, y));
-        d += (k === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
-      }
-      chord.path.setAttribute('d', d);
     }
 
     function setPointOpacity(count) {
@@ -692,12 +641,7 @@
     }
 
     function showHexagon() {
-      chords.forEach((chord) => {
-        chord.normal = new Array(samplesPerChord).fill(0);
-        drawChord(chord);
-        chord.path.setAttribute('opacity', chord.boundary ? '1' : '0');
-      });
-      aboutSpaghetti.style.opacity = '0.14';
+      renderStrands(1, 0);
       setPointOpacity(6);
       aboutWalk.style.opacity = '0';
     }
@@ -712,86 +656,61 @@
       let running = false;
       let rafId = 0;
 
-      function enterPhase(name) {
-        if (name === 'pairs') disturb(22);
-        if (name === 'walk') {
-          chords.forEach((chord) => {
-            chord.normal = new Array(samplesPerChord).fill(0);
-          });
-        }
-      }
-
       function frame(now) {
         if (!running || document.hidden) {
           rafId = 0;
           last = now;
           return;
         }
-        const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
         let elapsed = now - phaseStarted;
         if (elapsed >= phases[phaseIndex].ms) {
           phaseIndex = (phaseIndex + 1) % phases.length;
           phaseStarted = now;
           elapsed = 0;
-          enterPhase(phases[phaseIndex].name);
         }
         const phase = phases[phaseIndex];
         const u = elapsed / phase.ms;
-        let spaghettiOpacity = 1;
+        const eased = smoothstep(u);
+        let settle = 0;
+        let noiseOpacity = 1;
         let pointCount = 0;
-        let chordOpacity = 0;
-        let diagonalOpacity = 0;
-        let temperature = 0;
         let walkOpacity = 0;
         let walkOffset = walkLength;
 
         if (phase.name === 'spaghetti') {
-          spaghettiOpacity = 1;
+          settle = 0;
+          noiseOpacity = 1;
         } else if (phase.name === 'find') {
-          spaghettiOpacity = 1 - 0.86 * u;
+          settle = 0;
+          noiseOpacity = 1 - 0.35 * u;
           pointCount = u * 6;
-        } else if (phase.name === 'pairs') {
-          spaghettiOpacity = 0.14;
+        } else if (phase.name === 'resolve') {
+          settle = eased;
+          noiseOpacity = 1 - eased;
           pointCount = 6;
-          chordOpacity = Math.min(1, u / 0.2);
-          temperature = 1;
-          coolChords(temperature, dt);
-        } else if (phase.name === 'hex') {
-          spaghettiOpacity = 0.14;
-          pointCount = 6;
-          chordOpacity = 1;
-          temperature = Math.pow(1 - u, 1.5);
-          coolChords(temperature, dt);
         } else if (phase.name === 'walk') {
-          spaghettiOpacity = 0.14;
+          settle = 1;
+          noiseOpacity = 0;
           pointCount = 6;
-          chordOpacity = 1;
-          diagonalOpacity = 0;
           walkOpacity = 1;
           walkOffset = walkLength * (1 - u);
         } else if (phase.name === 'hold') {
-          spaghettiOpacity = 0.14;
+          settle = 1;
+          noiseOpacity = 0;
           pointCount = 6;
-          chordOpacity = 1;
-          diagonalOpacity = 0;
           walkOpacity = 1;
           walkOffset = 0;
         } else {
-          spaghettiOpacity = 0.14 + 0.86 * u;
+          settle = 1 - eased;
+          noiseOpacity = eased;
           pointCount = 6 * (1 - u);
-          chordOpacity = 1 - u;
-          diagonalOpacity = 0;
-          walkOpacity = 1 - u;
+          walkOpacity = Math.max(0, 1 - u / 0.35);
           walkOffset = 0;
         }
 
-        aboutSpaghetti.style.opacity = String(spaghettiOpacity);
+        renderStrands(settle, noiseOpacity);
         setPointOpacity(pointCount);
-        chords.forEach((chord) => {
-          drawChord(chord);
-          chord.path.setAttribute('opacity', String(chord.boundary ? chordOpacity : diagonalOpacity));
-        });
         aboutWalk.style.strokeDasharray = String(walkLength);
         aboutWalk.style.strokeDashoffset = String(walkOffset);
         aboutWalk.style.opacity = String(walkOpacity);
