@@ -53,9 +53,11 @@
         <ul>
           <li><a href="#home" class="active">Home</a></li>
           <li><a href="#services">Services</a></li>
+          <li><a href="#work">Work</a></li>
           <li class="dropdown"><a href="#products"><span>Products</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
               <li><a href="https://agenseer.com" target="_blank">AgenSeer</a></li>
+              <li><a href="https://workcastr.com" target="_blank">Workcastr</a></li>
             </ul>
           </li>
           <li><a href="#about">About</a></li>
@@ -76,7 +78,33 @@
             <p>We design algorithms, software, and supporting technology that help you better understand your world and navigate within it.</p>
           </div>
           <div class="col-lg-6 order-1 order-lg-2 hero-img" data-aos="zoom-out" data-aos-delay="200">
-            <img src="assets/img/hero-img.png" class="img-fluid animated" alt="">
+            <svg id="hero-world" class="img-fluid" viewBox="0 0 640 640" width="640" height="640" role="img" aria-label="A globe. A rough random path cools into a smooth curve along one meridian.">
+              <title>A globe. A rough random path cools into a smooth curve along one meridian.</title>
+              <g clip-path="url(#hero-globe)" stroke="#ffffff" stroke-width="1.35" opacity="0.55" fill="none">
+                <ellipse cx="320" cy="175" rx="150" ry="28"/>
+                <ellipse cx="320" cy="245" rx="196" ry="22"/>
+                <path d="M120 320 H520"/>
+                <ellipse cx="320" cy="395" rx="196" ry="22"/>
+                <ellipse cx="320" cy="465" rx="150" ry="28"/>
+                <ellipse cx="320" cy="320" rx="48" ry="200"/>
+                <ellipse cx="320" cy="320" rx="110" ry="200"/>
+                <ellipse cx="320" cy="320" rx="168" ry="200"/>
+                <path d="M320 120 V520"/>
+              </g>
+              <circle cx="320" cy="320" r="200" fill="none" stroke="#ffffff" stroke-width="1.75"/>
+              <path d="M320 120 A88 200 0 0 1 320 520" fill="none" stroke="#ffffff" stroke-width="2"/>
+              <path id="hero-anneal-path" fill="none" stroke="#47b2e4" stroke-width="4.125" stroke-linecap="round" stroke-linejoin="round"/>
+              <g id="hero-anneal-points" fill="#47b2e4" stroke="#ffffff" stroke-width="1.6">
+                <circle cx="364" cy="146.8" r="6.5"/>
+                <circle cx="407.7" cy="302.6" r="6.5"/>
+                <circle cx="376.6" cy="473.2" r="6.5"/>
+              </g>
+              <defs>
+                <clipPath id="hero-globe">
+                  <circle cx="320" cy="320" r="199"/>
+                </clipPath>
+              </defs>
+            </svg>
           </div>
         </div>
       </div>
@@ -129,8 +157,31 @@
       </div>
     </section>
 
+    <!-- Work Section -->
+    <section id="work" class="pricing section">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Our Work</h2>
+      </div>
+
+      <div class="container">
+        <div class="row gy-4 justify-content-center">
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="100">
+            <div class="pricing-item">
+              <h3>Letting schedule optimization</h3>
+              <p>Assigned a year of transportation construction projects to monthly bid lettings while holding district workload, project mix, and seasonal limits inside planning targets.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Genetic search over monthly assignments</span></li>
+                <li><i class="bi bi-check"></i> <span>Uncertainty analysis for bids and slippage</span></li>
+                <li><i class="bi bi-check"></i> <span>Reports and a planning application</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Products Section -->
-    <section id="products" class="pricing section">
+    <section id="products" class="pricing section light-background">
       <div class="container section-title" data-aos="fade-up">
         <h2>Our Products</h2>
       </div>
@@ -150,6 +201,18 @@
           </div>
 
           <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="200">
+            <div class="pricing-item">
+              <h3><a href="https://workcastr.com" target="_blank">Workcastr</a></h3>
+              <p>Capture work on a timeline, build period reports, and track goals tied to projects.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Timeline of plans and logs</span></li>
+                <li><i class="bi bi-check"></i> <span>Period reports you can share</span></li>
+                <li><i class="bi bi-check"></i> <span>Goals tied to projects</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="300">
             <div class="pricing-item">
               <h3>Coming Soon</h3>
               <p>We are working on exciting new products to help you better understand your world.</p>
@@ -171,13 +234,19 @@
       </div>
 
       <div class="container">
-        <div class="row gy-4 align-items-center">
-          <div class="col-lg-6 content" data-aos="fade-up" data-aos-delay="100">
-            <p class="lead fs-4 mb-4">We combine mathematical expertise with cutting-edge technology to deliver innovative solutions.</p>
-            <p class="fs-5">Our team of experts specializes in developing custom algorithms and web applications that address complex business challenges. We pride ourselves on delivering efficient, scalable, and maintainable solutions that drive real business value.</p>
+        <div class="row gy-4 justify-content-center">
+          <div class="col-lg-8 content" data-aos="fade-up" data-aos-delay="100">
+            <p class="lead fs-4 mb-4">We are creative modelers and problem solvers.</p>
+            <p class="fs-5">We frame a hard problem as a model, then build the algorithms, analysis, and software that put that model to work. The result is a solution fitted to the decision you actually have to make.</p>
           </div>
-          <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
-            <img src="about_us.jpeg" alt="About Saint Martin Mathematics" class="img-fluid rounded" style="object-fit: cover; height: 200px; width: 100%;">
+          <div class="col-lg-10" data-aos="fade-up" data-aos-delay="200">
+            <svg id="about-model" class="img-fluid" viewBox="0 0 1080 320" width="1080" height="320" role="img" aria-label="Spaghetti lines give way to six points. Noisy links between them settle into a wide hexagon, and one stroke walks the boundary.">
+              <title>Spaghetti lines give way to six points. Noisy links between them settle into a wide hexagon, and one stroke walks the boundary.</title>
+              <g id="about-spaghetti" fill="none" stroke="#37517e" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"></g>
+              <g id="about-chords" fill="none" stroke="#47b2e4" stroke-linecap="round" stroke-linejoin="round"></g>
+              <path id="about-walk" fill="none" stroke="#37517e" stroke-width="4.125" stroke-linecap="round" stroke-linejoin="round"/>
+              <g id="about-points"></g>
+            </svg>
           </div>
         </div>
       </div>
