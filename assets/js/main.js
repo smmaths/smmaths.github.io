@@ -228,36 +228,80 @@
   document.addEventListener('scroll', navmenuScrollspy);
 
   /**
-   * Hero: each load shows one of the cooling curve, the route, or the shear layer.
+   * Hero: the first show is random. When it finishes, one of the other two plays,
+   * so a visitor who stays can see the cooling curve, the route, and the shear layer.
    */
   const heroSvg = document.querySelector('#hero-world');
   const heroAnneal = document.querySelector('#hero-anneal');
   const heroScenePick = document.querySelector('#hero-scene');
   const heroShearPick = document.querySelector('#hero-shear');
-  if (heroSvg && heroAnneal && heroScenePick && heroShearPick) {
-    const heroChoices = [
-      {
-        keep: heroAnneal,
-        drop: [heroScenePick, heroShearPick],
-        label: 'A globe. A rough random path cools into a smooth curve along one meridian.'
-      },
-      {
-        keep: heroScenePick,
-        drop: [heroAnneal, heroShearPick],
-        label: 'A globe. Points appear, and a crossed route untangles into a short circuit along the sphere.'
-      },
-      {
-        keep: heroShearPick,
-        drop: [heroAnneal, heroScenePick],
-        label: 'A globe. Two bands of spin slide past each other, and the boundary rolls up into vortices.'
-      }
-    ];
-    const heroChoice = heroChoices[Math.floor(Math.random() * heroChoices.length)];
-    heroSvg.setAttribute('aria-label', heroChoice.label);
+  const heroShows = [
+    {
+      id: 'anneal',
+      el: heroAnneal,
+      label: 'A globe. A rough random path cools into a smooth curve along one meridian.'
+    },
+    {
+      id: 'route',
+      el: heroScenePick,
+      label: 'A globe. Points appear, and a crossed route untangles into a short circuit along the sphere.'
+    },
+    {
+      id: 'shear',
+      el: heroShearPick,
+      label: 'A globe. Two bands of spin slide past each other, and the boundary rolls up into vortices.'
+    }
+  ];
+  const heroPlayers = {};
+  let heroCurrent = null;
+  let heroVisible = true;
+
+  function heroDescribe(show) {
+    if (!heroSvg) return;
+    heroSvg.setAttribute('aria-label', show.label);
     const heroTitle = heroSvg.querySelector('title');
-    if (heroTitle) heroTitle.textContent = heroChoice.label;
-    heroChoice.drop.forEach((el) => el.remove());
-    heroChoice.keep.removeAttribute('hidden');
+    if (heroTitle) heroTitle.textContent = show.label;
+  }
+
+  function heroPlay(id) {
+    const show = heroShows.find((item) => item.id === id);
+    const previous = heroCurrent;
+    heroCurrent = id;
+    if (previous && previous !== id && heroPlayers[previous]) heroPlayers[previous].stop();
+    heroShows.forEach((item) => {
+      if (!item.el) return;
+      if (item.id === id) item.el.removeAttribute('hidden');
+      else item.el.setAttribute('hidden', '');
+    });
+    heroDescribe(show);
+    heroPlayers[id].play();
+  }
+
+  function heroAdvance(fromId) {
+    if (heroCurrent !== fromId) return;
+    const options = heroShows.filter((item) => item.id !== fromId && item.el && heroPlayers[item.id]);
+    if (!options.length) return;
+    heroPlay(options[Math.floor(Math.random() * options.length)].id);
+  }
+
+  function startHeroRotation() {
+    const ready = heroShows.filter((item) => item.el && heroPlayers[item.id]);
+    if (!ready.length) return;
+    const heroSection = document.querySelector('#home');
+    if (heroSection && 'IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        heroVisible = entries[0].isIntersecting;
+        const player = heroCurrent && heroPlayers[heroCurrent];
+        if (player) player.setVisible(heroVisible);
+      });
+      observer.observe(heroSection);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      const player = heroCurrent && heroPlayers[heroCurrent];
+      if (player) player.resume();
+    });
+    heroPlay(ready[Math.floor(Math.random() * ready.length)].id);
   }
 
   /**
@@ -529,16 +573,50 @@
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
-      startCycle(0);
-      const last = cycle.frames[cycle.frames.length - 1];
-      showTour(last, cycle.pts, 1);
-      paintPoints(cycle.pts, () => 1000);
+      heroPlayers.route = {
+        play() {
+          startCycle(0);
+          const last = cycle.frames[cycle.frames.length - 1];
+          showTour(last, cycle.pts, 1);
+          paintPoints(cycle.pts, () => 1000);
+        },
+        stop() {},
+        setVisible() {},
+        resume() {}
+      };
     } else {
       let rafId = 0;
-      let running = true;
+      let running = false;
+      let active = false;
       let pausedAt = 0;
 
+      function stop() {
+        active = false;
+        running = false;
+        if (rafId) window.cancelAnimationFrame(rafId);
+        rafId = 0;
+        pausedAt = 0;
+      }
+
+      function play() {
+        active = true;
+        cycle = null;
+        pausedAt = 0;
+        running = heroVisible;
+        if (running && !document.hidden) start();
+      }
+
+      function setVisible(visible) {
+        running = visible && active;
+        if (running && !document.hidden) start();
+      }
+
+      function resume() {
+        if (active && running) start();
+      }
+
       function tick(now) {
+        if (!active) return;
         if (!running || document.hidden) {
           if (!pausedAt) pausedAt = now;
           rafId = 0;
@@ -549,24 +627,18 @@
           pausedAt = 0;
         }
         if (!cycle) startCycle(now);
-        let t = now - cycleStarted;
-        let n = cycle.pts.length;
-        let strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
-        let drawStart = strikeEnd + DRAW_PAUSE;
-        let drawEnd = drawStart + DRAW_MS;
-        let searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
-        let holdEnd = searchEnd + HOLD_MS;
-        let fadeEnd = holdEnd + FADE_MS;
+        const t = now - cycleStarted;
+        const n = cycle.pts.length;
+        const strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
+        const drawStart = strikeEnd + DRAW_PAUSE;
+        const drawEnd = drawStart + DRAW_MS;
+        const searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
+        const holdEnd = searchEnd + HOLD_MS;
+        const fadeEnd = holdEnd + FADE_MS;
         if (t >= fadeEnd) {
-          startCycle(now);
-          t = 0;
-          n = cycle.pts.length;
-          strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
-          drawStart = strikeEnd + DRAW_PAUSE;
-          drawEnd = drawStart + DRAW_MS;
-          searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
-          holdEnd = searchEnd + HOLD_MS;
-          fadeEnd = holdEnd + FADE_MS;
+          stop();
+          heroAdvance('route');
+          return;
         }
 
         paintPoints(cycle.pts, (i) => t - (STRIKE_LEAD + i * STRIKE_GAP));
@@ -597,18 +669,7 @@
         if (!rafId) rafId = window.requestAnimationFrame(tick);
       }
 
-      const heroSection = document.querySelector('#home');
-      if (heroSection && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-          running = entries[0].isIntersecting;
-          if (running) start();
-        });
-        observer.observe(heroSection);
-      }
-      start();
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && running) start();
-      });
+      heroPlayers.route = { play: play, stop: stop, setVisible: setVisible, resume: resume };
     }
   }
 
@@ -888,20 +949,56 @@
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
-      buildShear();
-      for (let i = 0; i < 320; i++) stepShear();
-      for (let i = 0; i < blobs.length; i++) blobs[i].sShown = Math.abs(blobs[i].s);
-      paintShear(2);
-      heroShear.style.opacity = '1';
+      heroPlayers.shear = {
+        play() {
+          buildShear();
+          for (let i = 0; i < 320; i++) stepShear();
+          for (let i = 0; i < blobs.length; i++) blobs[i].sShown = Math.abs(blobs[i].s);
+          paintShear(2);
+          heroShear.style.opacity = '1';
+        },
+        stop() {},
+        setVisible() {},
+        resume() {}
+      };
     } else {
-      buildShear();
       let sim = 0;
       let acc = 0;
       let last = 0;
       let rafId = 0;
-      let running = true;
+      let running = false;
+      let active = false;
+
+      function stop() {
+        active = false;
+        running = false;
+        if (rafId) window.cancelAnimationFrame(rafId);
+        rafId = 0;
+        last = 0;
+      }
+
+      function play() {
+        active = true;
+        buildShear();
+        sim = 0;
+        acc = 0;
+        last = 0;
+        heroShear.style.opacity = '0';
+        running = heroVisible;
+        if (running && !document.hidden) start();
+      }
+
+      function setVisible(visible) {
+        running = visible && active;
+        if (running && !document.hidden) start();
+      }
+
+      function resume() {
+        if (active && running) start();
+      }
 
       function tick(now) {
+        if (!active) return;
         if (!running || document.hidden) {
           last = 0;
           rafId = 0;
@@ -910,18 +1007,24 @@
         if (!last) last = now;
         acc += Math.min(0.05, (now - last) / 1000);
         last = now;
+        let done = false;
         let guard = 0;
         while (acc >= 1 / 60 && guard < 4) {
           sim += 1 / 60;
           if (sim > FADE_END) {
-            sim = 0;
-            buildShear();
+            done = true;
+            break;
           }
           if (sim > 0.9) stepShear();
           acc -= 1 / 60;
           guard += 1;
         }
-        paintShear(sim);
+        paintShear(Math.min(sim, FADE_END));
+        if (done) {
+          stop();
+          heroAdvance('shear');
+          return;
+        }
         rafId = window.requestAnimationFrame(tick);
       }
 
@@ -929,18 +1032,7 @@
         if (!rafId) rafId = window.requestAnimationFrame(tick);
       }
 
-      const heroSection = document.querySelector('#home');
-      if (heroSection && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-          running = entries[0].isIntersecting;
-          if (running) start();
-        });
-        observer.observe(heroSection);
-      }
-      start();
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && running) start();
-      });
+      heroPlayers.shear = { play: play, stop: stop, setVisible: setVisible, resume: resume };
     }
   }
 
@@ -1079,32 +1171,79 @@
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
-      showFinal();
+      heroPlayers.anneal = {
+        play() {
+          showFinal();
+        },
+        stop() {},
+        setVisible() {},
+        resume() {}
+      };
     } else {
       let phaseIndex = 0;
-      let phaseStarted = performance.now();
-      let last = phaseStarted;
-      let running = true;
+      let phaseStarted = 0;
+      let last = 0;
+      let running = false;
+      let active = false;
       let rafId = 0;
+      let pausedAt = 0;
 
       function enterPhase(name) {
         if (name === 'anneal') beginWalk();
         if (name === 'hold') showFinal();
       }
 
-      enterPhase(phases[0].name);
+      function stop() {
+        active = false;
+        running = false;
+        if (rafId) window.cancelAnimationFrame(rafId);
+        rafId = 0;
+        pausedAt = 0;
+      }
+
+      function play() {
+        active = true;
+        phaseIndex = 0;
+        phaseStarted = performance.now();
+        last = phaseStarted;
+        pausedAt = 0;
+        enterPhase(phases[0].name);
+        running = heroVisible;
+        if (running && !document.hidden) start();
+      }
+
+      function setVisible(visible) {
+        running = visible && active;
+        if (running && !document.hidden) start();
+      }
+
+      function resume() {
+        if (active && running) start();
+      }
 
       function frame(now) {
+        if (!active) return;
         if (!running || document.hidden) {
+          if (!pausedAt) pausedAt = now;
           rafId = 0;
           last = now;
           return;
+        }
+        if (pausedAt) {
+          phaseStarted += now - pausedAt;
+          pausedAt = 0;
         }
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
         let elapsed = now - phaseStarted;
         if (elapsed >= phases[phaseIndex].ms) {
-          phaseIndex = (phaseIndex + 1) % phases.length;
+          if (phaseIndex === phases.length - 1) {
+            render(0);
+            stop();
+            heroAdvance('anneal');
+            return;
+          }
+          phaseIndex += 1;
           phaseStarted = now;
           elapsed = 0;
           enterPhase(phases[phaseIndex].name);
@@ -1133,20 +1272,11 @@
         }
       }
 
-      const heroSection = document.querySelector('#home');
-      if (heroSection && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-          running = entries[0].isIntersecting;
-          if (running) start();
-        });
-        observer.observe(heroSection);
-      }
-      start();
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && running) start();
-      });
+      heroPlayers.anneal = { play: play, stop: stop, setVisible: setVisible, resume: resume };
     }
   }
+
+  startHeroRotation();
 
   /**
    * About: spaghetti finds six points, then those same strands straighten into the hexagon.
