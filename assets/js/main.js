@@ -492,11 +492,22 @@
     let cycle = null;
     let cycleStarted = 0;
 
+    function clearPointDraw() {
+      const pointNodes = heroRoutePoints.children;
+      const flashNodes = heroFlashes.children;
+      for (let i = 0; i < pointNodes.length; i++) {
+        pointNodes[i].setAttribute('r', '0');
+        flashNodes[i].setAttribute('r', '0');
+        flashNodes[i].setAttribute('opacity', '0');
+      }
+    }
+
     function startCycle(now) {
       cycle = buildCycle();
       cycleStarted = now;
       ensureNodes(cycle.pts.length);
       layoutNodes(cycle.pts);
+      clearPointDraw();
       heroRoute.setAttribute('d', pathData(cycle.frames[0], cycle.pts));
       heroRoute.style.opacity = '0';
       heroRoute.style.strokeDasharray = '';
@@ -538,14 +549,25 @@
           pausedAt = 0;
         }
         if (!cycle) startCycle(now);
-        const t = now - cycleStarted;
-        const n = cycle.pts.length;
-        const strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
-        const drawStart = strikeEnd + DRAW_PAUSE;
-        const drawEnd = drawStart + DRAW_MS;
-        const searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
-        const holdEnd = searchEnd + HOLD_MS;
-        const fadeEnd = holdEnd + FADE_MS;
+        let t = now - cycleStarted;
+        let n = cycle.pts.length;
+        let strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
+        let drawStart = strikeEnd + DRAW_PAUSE;
+        let drawEnd = drawStart + DRAW_MS;
+        let searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
+        let holdEnd = searchEnd + HOLD_MS;
+        let fadeEnd = holdEnd + FADE_MS;
+        if (t >= fadeEnd) {
+          startCycle(now);
+          t = 0;
+          n = cycle.pts.length;
+          strikeEnd = STRIKE_LEAD + n * STRIKE_GAP;
+          drawStart = strikeEnd + DRAW_PAUSE;
+          drawEnd = drawStart + DRAW_MS;
+          searchEnd = drawEnd + Math.max(0, cycle.frames.length - 1) * FRAME_MS;
+          holdEnd = searchEnd + HOLD_MS;
+          fadeEnd = holdEnd + FADE_MS;
+        }
 
         paintPoints(cycle.pts, (i) => t - (STRIKE_LEAD + i * STRIKE_GAP));
 
@@ -567,8 +589,6 @@
         } else if (t < fadeEnd) {
           showTour(cycle.frames[cycle.frames.length - 1], cycle.pts, 1);
           heroScene.style.opacity = String(1 - (t - holdEnd) / FADE_MS);
-        } else {
-          startCycle(now);
         }
         rafId = window.requestAnimationFrame(tick);
       }
@@ -615,6 +635,11 @@
     function front(x, y) {
       return norm({ x: x, y: y, z: Math.sqrt(Math.max(0.04, 1 - x * x - y * y)) });
     }
+    function spin(p, ang) {
+      const c = Math.cos(ang);
+      const s = Math.sin(ang);
+      return { x: c * p.x - s * p.y, y: s * p.x + c * p.y, z: p.z };
+    }
     function cross(a, b) {
       return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
     }
@@ -648,7 +673,7 @@
         if (k === skip) continue;
         const c = blobs[k].p;
         const align = dot(p, c);
-        const amp = blobs[k].s * Math.exp(blobs[k].beta * (align - 1));
+        const amp = blobs[k].sPhys * Math.exp(blobs[k].betaPhys * (align - 1));
         const u = cross(p, c);
         x += amp * u.x;
         y += amp * u.y;
@@ -691,6 +716,11 @@
       for (let i = 0; i < blobs.length; i++) blobs[i].p = apply(blobs[i].p);
       for (let i = 0; i < dye.length; i++) dye[i] = apply(dye[i]);
     }
+    function makeDot() {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      heroShearDots.appendChild(el);
+      return el;
+    }
     function mergeBlobs() {
       let guard = 0;
       let changed = true;
@@ -701,15 +731,21 @@
           for (let j = i + 1; j < blobs.length; j++) {
             if (blobs[i].s * blobs[j].s <= 0) continue;
             if (ang(blobs[i].p, blobs[j].p) > 0.095) continue;
-            const s = blobs[i].s + blobs[j].s;
+            const a = blobs[i];
+            const b = blobs[j];
+            if (b.el) b.el.remove();
             blobs[i] = {
               p: norm({
-                x: blobs[i].s * blobs[i].p.x + blobs[j].s * blobs[j].p.x,
-                y: blobs[i].s * blobs[i].p.y + blobs[j].s * blobs[j].p.y,
-                z: blobs[i].s * blobs[i].p.z + blobs[j].s * blobs[j].p.z
+                x: Math.abs(a.s) * a.p.x + Math.abs(b.s) * b.p.x,
+                y: Math.abs(a.s) * a.p.y + Math.abs(b.s) * b.p.y,
+                z: Math.abs(a.s) * a.p.z + Math.abs(b.s) * b.p.z
               }),
-              s: s,
-              beta: Math.max(5.5, (blobs[i].beta + blobs[j].beta) * 0.46)
+              s: a.s + b.s,
+              sPhys: a.sPhys + b.sPhys,
+              sShown: a.sShown,
+              beta: Math.max(5.5, (a.beta + b.beta) * 0.46),
+              betaPhys: Math.max(a.betaPhys, b.betaPhys),
+              el: a.el
             };
             blobs.splice(j, 1);
             changed = true;
@@ -719,21 +755,56 @@
       }
     }
     function buildShear() {
-      const phase = Math.random() * Math.PI;
+      const tilt = Math.random() * Math.PI * 2;
+      const p1 = Math.random() * Math.PI * 2;
+      const p2 = Math.random() * Math.PI * 2;
+      const ps = Math.random() * Math.PI * 2;
+      const A1 = 0.045 + Math.random() * 0.07;
+      const A2 = 0.015 + Math.random() * 0.04;
+      const vigor = 0.84 + Math.random() * 0.16;
       const count = 12;
+      const gap = 0.055;
+      const x0 = -0.52;
+      const span = 1.04;
+
+      function along(t) {
+        const y = A1 * Math.sin(2 * Math.PI * t + p1) + A2 * Math.sin(4 * Math.PI * t + p2);
+        const dy = A1 * 2 * Math.PI * Math.cos(2 * Math.PI * t + p1) + A2 * 4 * Math.PI * Math.cos(4 * Math.PI * t + p2);
+        const tm = Math.hypot(span, dy) || 1;
+        const swell = 0.5 + 0.5 * Math.sin(2 * Math.PI * t + ps);
+        return {
+          x: x0 + t * span,
+          y: y,
+          nx: -dy / tm,
+          ny: span / tm,
+          strength: vigor * (0.48 + 0.52 * swell)
+        };
+      }
+      function onGlobe(x, y) {
+        return spin(front(x, y), tilt);
+      }
+
+      while (heroShearDots.firstChild) heroShearDots.removeChild(heroShearDots.firstChild);
       blobs = [];
       for (let i = 0; i < count; i++) {
         const t = i / (count - 1);
-        const x = -0.52 + t * 1.04;
-        const wave = 0.04 * Math.sin(4 * Math.PI * t + phase);
-        blobs.push({ p: front(x, 0.055 + wave), s: S0, beta: BETA0 });
-        blobs.push({ p: front(x, -0.055 - wave), s: -S0, beta: BETA0 });
+        const c = along(t);
+        const s = S0 * c.strength;
+        blobs.push({
+          p: onGlobe(c.x + gap * c.nx, c.y + gap * c.ny),
+          s: s, sPhys: s, sShown: s, beta: BETA0, betaPhys: BETA0, el: makeDot()
+        });
+        blobs.push({
+          p: onGlobe(c.x - gap * c.nx, c.y - gap * c.ny),
+          s: -s, sPhys: -s, sShown: s, beta: BETA0, betaPhys: BETA0, el: makeDot()
+        });
       }
       dye = [];
       const dyeCount = 140;
       for (let i = 0; i < dyeCount; i++) {
         const t = i / (dyeCount - 1);
-        dye.push(front(-0.5 + t * 1.0, 0.012 * Math.sin(4 * Math.PI * t + phase)));
+        const c = along(t);
+        dye.push(onGlobe(c.x, c.y));
       }
     }
     function stepShear() {
@@ -742,6 +813,11 @@
       for (let i = 0; i < dye.length; i++) dye[i] = advect(dye[i], velocity(dye[i], -1));
       recenter();
       mergeBlobs();
+      for (let i = 0; i < blobs.length; i++) {
+        const b = blobs[i];
+        b.sShown += (Math.abs(b.s) - b.sShown) * 0.08;
+        b.betaPhys += (b.beta - b.betaPhys) * 0.08;
+      }
     }
     function dyePath() {
       let d = '';
@@ -795,20 +871,15 @@
     function paintShear(sim) {
       heroShearWinds.setAttribute('d', windPath());
       heroShearDye.setAttribute('d', dyePath());
-      while (heroShearDots.children.length < blobs.length) {
-        heroShearDots.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'circle'));
-      }
-      while (heroShearDots.children.length > blobs.length) heroShearDots.removeChild(heroShearDots.lastChild);
       const pop = Math.min(1, sim / 0.45);
       for (let i = 0; i < blobs.length; i++) {
         const b = blobs[i];
         const s = project(b.p);
         const depth = Math.min(1, Math.max(0, (b.p.z - 0.05) / 0.3));
-        const dot = heroShearDots.children[i];
-        dot.setAttribute('cx', s.x.toFixed(1));
-        dot.setAttribute('cy', s.y.toFixed(1));
-        dot.setAttribute('r', (3.15 * Math.sqrt(Math.abs(b.s) / S0) * pop * depth).toFixed(2));
-        dot.setAttribute('fill', b.s > 0 ? '#47b2e4' : '#f4f7fb');
+        b.el.setAttribute('cx', s.x.toFixed(1));
+        b.el.setAttribute('cy', s.y.toFixed(1));
+        b.el.setAttribute('r', (3.15 * Math.sqrt(b.sShown / S0) * pop * depth).toFixed(2));
+        b.el.setAttribute('fill', b.s > 0 ? '#47b2e4' : '#f4f7fb');
       }
       const fadeIn = Math.min(1, sim / 0.4);
       const fadeOut = sim > HOLD_END ? Math.max(0, 1 - (sim - HOLD_END) / (FADE_END - HOLD_END)) : 1;
@@ -819,6 +890,7 @@
     if (reduceMotion) {
       buildShear();
       for (let i = 0; i < 320; i++) stepShear();
+      for (let i = 0; i < blobs.length; i++) blobs[i].sShown = Math.abs(blobs[i].s);
       paintShear(2);
       heroShear.style.opacity = '1';
     } else {
