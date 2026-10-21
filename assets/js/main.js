@@ -228,26 +228,36 @@
   document.addEventListener('scroll', navmenuScrollspy);
 
   /**
-   * Hero: each load shows either the cooling curve or the route on the sphere.
+   * Hero: each load shows one of the cooling curve, the route, or the shear layer.
    */
   const heroSvg = document.querySelector('#hero-world');
   const heroAnneal = document.querySelector('#hero-anneal');
   const heroScenePick = document.querySelector('#hero-scene');
-  if (heroSvg && heroAnneal && heroScenePick) {
-    const useRoute = Math.random() < 0.5;
-    const heroLabel = useRoute
-      ? 'A globe. Points appear, and a crossed route untangles into a short circuit along the sphere.'
-      : 'A globe. A rough random path cools into a smooth curve along one meridian.';
-    heroSvg.setAttribute('aria-label', heroLabel);
+  const heroShearPick = document.querySelector('#hero-shear');
+  if (heroSvg && heroAnneal && heroScenePick && heroShearPick) {
+    const heroChoices = [
+      {
+        keep: heroAnneal,
+        drop: [heroScenePick, heroShearPick],
+        label: 'A globe. A rough random path cools into a smooth curve along one meridian.'
+      },
+      {
+        keep: heroScenePick,
+        drop: [heroAnneal, heroShearPick],
+        label: 'A globe. Points appear, and a crossed route untangles into a short circuit along the sphere.'
+      },
+      {
+        keep: heroShearPick,
+        drop: [heroAnneal, heroScenePick],
+        label: 'A globe. Two bands of spin slide past each other, and the boundary rolls up into vortices.'
+      }
+    ];
+    const heroChoice = heroChoices[Math.floor(Math.random() * heroChoices.length)];
+    heroSvg.setAttribute('aria-label', heroChoice.label);
     const heroTitle = heroSvg.querySelector('title');
-    if (heroTitle) heroTitle.textContent = heroLabel;
-    if (useRoute) {
-      heroAnneal.remove();
-      heroScenePick.removeAttribute('hidden');
-    } else {
-      heroScenePick.remove();
-      heroAnneal.removeAttribute('hidden');
-    }
+    if (heroTitle) heroTitle.textContent = heroChoice.label;
+    heroChoice.drop.forEach((el) => el.remove());
+    heroChoice.keep.removeAttribute('hidden');
   }
 
   /**
@@ -560,6 +570,286 @@
         } else {
           startCycle(now);
         }
+        rafId = window.requestAnimationFrame(tick);
+      }
+
+      function start() {
+        if (!rafId) rafId = window.requestAnimationFrame(tick);
+      }
+
+      const heroSection = document.querySelector('#home');
+      if (heroSection && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          running = entries[0].isIntersecting;
+          if (running) start();
+        });
+        observer.observe(heroSection);
+      }
+      start();
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && running) start();
+      });
+    }
+  }
+
+  /**
+   * Hero shear: two bands of spin on the globe. Their boundary rolls up into vortices.
+   */
+  const heroShear = document.querySelector('#hero-shear');
+  const heroShearWinds = document.querySelector('#hero-shear-winds');
+  const heroShearDye = document.querySelector('#hero-shear-dye');
+  const heroShearDots = document.querySelector('#hero-shear-dots');
+  if (heroShear && heroShearWinds && heroShearDye && heroShearDots) {
+    const CX = 320;
+    const CY = 320;
+    const R = 200;
+    const S0 = 0.75;
+    const BETA0 = 18;
+    const HOLD_END = 7.6;
+    const FADE_END = 8.5;
+
+    function norm(v) {
+      const m = Math.hypot(v.x, v.y, v.z) || 1;
+      return { x: v.x / m, y: v.y / m, z: v.z / m };
+    }
+    function front(x, y) {
+      return norm({ x: x, y: y, z: Math.sqrt(Math.max(0.04, 1 - x * x - y * y)) });
+    }
+    function cross(a, b) {
+      return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
+    }
+    function dot(a, b) {
+      return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+    function ang(a, b) {
+      return Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
+    }
+    function project(p) {
+      return { x: CX + R * p.x, y: CY - R * p.y };
+    }
+
+    let blobs = [];
+    let dye = [];
+    const WIND = [];
+    for (let j = -3; j <= 3; j++) {
+      for (let i = -4; i <= 4; i++) {
+        const x = i * 0.16;
+        const y = j * 0.155;
+        if (x * x + y * y > 0.58) continue;
+        WIND.push(front(x, y));
+      }
+    }
+
+    function velocity(p, skip) {
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      for (let k = 0; k < blobs.length; k++) {
+        if (k === skip) continue;
+        const c = blobs[k].p;
+        const align = dot(p, c);
+        const amp = blobs[k].s * Math.exp(blobs[k].beta * (align - 1));
+        const u = cross(p, c);
+        x += amp * u.x;
+        y += amp * u.y;
+        z += amp * u.z;
+      }
+      return { x: x, y: y, z: z };
+    }
+    function advect(p, u) {
+      const speed = Math.hypot(u.x, u.y, u.z);
+      if (speed < 1e-8) return p;
+      const step = Math.min(0.0038, speed * 0.0135);
+      const h = step / speed;
+      return norm({ x: p.x + u.x * h, y: p.y + u.y * h, z: p.z + u.z * h });
+    }
+    function recenter() {
+      let c = { x: 0, y: 0, z: 0 };
+      let w = 0;
+      for (let i = 0; i < blobs.length; i++) {
+        const a = Math.abs(blobs[i].s);
+        c.x += a * blobs[i].p.x;
+        c.y += a * blobs[i].p.y;
+        c.z += a * blobs[i].p.z;
+        w += a;
+      }
+      c = norm(c);
+      const axisRaw = cross(c, { x: 0, y: 0, z: 1 });
+      const sin = Math.hypot(axisRaw.x, axisRaw.y, axisRaw.z);
+      if (sin < 1e-5) return;
+      const axis = norm(axisRaw);
+      const cos = Math.max(-1, Math.min(1, c.z));
+      function apply(p) {
+        const kxp = cross(axis, p);
+        const kd = dot(axis, p);
+        return norm({
+          x: p.x * cos + kxp.x * sin + axis.x * kd * (1 - cos),
+          y: p.y * cos + kxp.y * sin + axis.y * kd * (1 - cos),
+          z: p.z * cos + kxp.z * sin + axis.z * kd * (1 - cos)
+        });
+      }
+      for (let i = 0; i < blobs.length; i++) blobs[i].p = apply(blobs[i].p);
+      for (let i = 0; i < dye.length; i++) dye[i] = apply(dye[i]);
+    }
+    function mergeBlobs() {
+      let guard = 0;
+      let changed = true;
+      while (changed && guard < 6) {
+        changed = false;
+        guard += 1;
+        for (let i = 0; i < blobs.length && !changed; i++) {
+          for (let j = i + 1; j < blobs.length; j++) {
+            if (blobs[i].s * blobs[j].s <= 0) continue;
+            if (ang(blobs[i].p, blobs[j].p) > 0.095) continue;
+            const s = blobs[i].s + blobs[j].s;
+            blobs[i] = {
+              p: norm({
+                x: blobs[i].s * blobs[i].p.x + blobs[j].s * blobs[j].p.x,
+                y: blobs[i].s * blobs[i].p.y + blobs[j].s * blobs[j].p.y,
+                z: blobs[i].s * blobs[i].p.z + blobs[j].s * blobs[j].p.z
+              }),
+              s: s,
+              beta: Math.max(5.5, (blobs[i].beta + blobs[j].beta) * 0.46)
+            };
+            blobs.splice(j, 1);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+    function buildShear() {
+      const phase = Math.random() * Math.PI;
+      const count = 12;
+      blobs = [];
+      for (let i = 0; i < count; i++) {
+        const t = i / (count - 1);
+        const x = -0.52 + t * 1.04;
+        const wave = 0.04 * Math.sin(4 * Math.PI * t + phase);
+        blobs.push({ p: front(x, 0.055 + wave), s: S0, beta: BETA0 });
+        blobs.push({ p: front(x, -0.055 - wave), s: -S0, beta: BETA0 });
+      }
+      dye = [];
+      const dyeCount = 140;
+      for (let i = 0; i < dyeCount; i++) {
+        const t = i / (dyeCount - 1);
+        dye.push(front(-0.5 + t * 1.0, 0.012 * Math.sin(4 * Math.PI * t + phase)));
+      }
+    }
+    function stepShear() {
+      const blobVel = blobs.map((b, i) => velocity(b.p, i));
+      for (let i = 0; i < blobs.length; i++) blobs[i].p = advect(blobs[i].p, blobVel[i]);
+      for (let i = 0; i < dye.length; i++) dye[i] = advect(dye[i], velocity(dye[i], -1));
+      recenter();
+      mergeBlobs();
+    }
+    function dyePath() {
+      let d = '';
+      let pen = false;
+      let prev = null;
+      for (let i = 0; i < dye.length; i++) {
+        const p = dye[i];
+        if (p.z < 0.1 || (prev && ang(prev, p) > 0.2)) pen = false;
+        if (p.z < 0.1) {
+          prev = null;
+          continue;
+        }
+        const s = project(p);
+        d += (pen ? 'L' : 'M') + s.x.toFixed(1) + ' ' + s.y.toFixed(1);
+        pen = true;
+        prev = p;
+      }
+      return d;
+    }
+    function windPath() {
+      let d = '';
+      const gain = 0.28 * R;
+      for (let i = 0; i < WIND.length; i++) {
+        const p = WIND[i];
+        const u = velocity(p, -1);
+        const vx = u.x;
+        const vy = -u.y;
+        const mag = Math.hypot(vx, vy);
+        if (mag < 1e-6) continue;
+        const len = Math.min(18, mag * gain);
+        if (len < 2.4) continue;
+        const s = project(p);
+        const ux = vx / mag;
+        const uy = vy / mag;
+        const x1 = s.x + ux * len;
+        const y1 = s.y + uy * len;
+        d += 'M' + s.x.toFixed(1) + ' ' + s.y.toFixed(1) + 'L' + x1.toFixed(1) + ' ' + y1.toFixed(1);
+        if (len > 6.5) {
+          const head = 3.1;
+          const wing = 1.7;
+          const lx = x1 - ux * head - uy * wing;
+          const ly = y1 - uy * head + ux * wing;
+          const rx = x1 - ux * head + uy * wing;
+          const ry = y1 - uy * head - ux * wing;
+          d += 'M' + lx.toFixed(1) + ' ' + ly.toFixed(1) + 'L' + x1.toFixed(1) + ' ' + y1.toFixed(1);
+          d += 'L' + rx.toFixed(1) + ' ' + ry.toFixed(1);
+        }
+      }
+      return d;
+    }
+    function paintShear(sim) {
+      heroShearWinds.setAttribute('d', windPath());
+      heroShearDye.setAttribute('d', dyePath());
+      while (heroShearDots.children.length < blobs.length) {
+        heroShearDots.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'circle'));
+      }
+      while (heroShearDots.children.length > blobs.length) heroShearDots.removeChild(heroShearDots.lastChild);
+      const pop = Math.min(1, sim / 0.45);
+      for (let i = 0; i < blobs.length; i++) {
+        const b = blobs[i];
+        const s = project(b.p);
+        const depth = Math.min(1, Math.max(0, (b.p.z - 0.05) / 0.3));
+        const dot = heroShearDots.children[i];
+        dot.setAttribute('cx', s.x.toFixed(1));
+        dot.setAttribute('cy', s.y.toFixed(1));
+        dot.setAttribute('r', (3.15 * Math.sqrt(Math.abs(b.s) / S0) * pop * depth).toFixed(2));
+        dot.setAttribute('fill', b.s > 0 ? '#47b2e4' : '#f4f7fb');
+      }
+      const fadeIn = Math.min(1, sim / 0.4);
+      const fadeOut = sim > HOLD_END ? Math.max(0, 1 - (sim - HOLD_END) / (FADE_END - HOLD_END)) : 1;
+      heroShear.style.opacity = String(fadeIn * fadeOut);
+    }
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      buildShear();
+      for (let i = 0; i < 320; i++) stepShear();
+      paintShear(2);
+      heroShear.style.opacity = '1';
+    } else {
+      buildShear();
+      let sim = 0;
+      let acc = 0;
+      let last = 0;
+      let rafId = 0;
+      let running = true;
+
+      function tick(now) {
+        if (!running || document.hidden) {
+          last = 0;
+          rafId = 0;
+          return;
+        }
+        if (!last) last = now;
+        acc += Math.min(0.05, (now - last) / 1000);
+        last = now;
+        let guard = 0;
+        while (acc >= 1 / 60 && guard < 4) {
+          sim += 1 / 60;
+          if (sim > FADE_END) {
+            sim = 0;
+            buildShear();
+          }
+          if (sim > 0.9) stepShear();
+          acc -= 1 / 60;
+          guard += 1;
+        }
+        paintShear(sim);
         rafId = window.requestAnimationFrame(tick);
       }
 
