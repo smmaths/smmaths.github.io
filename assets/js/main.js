@@ -9,6 +9,27 @@
 (function() {
   "use strict";
 
+  function cssColor(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
+  function parseHex(hex) {
+    const h = (hex || '').replace('#', '');
+    if (h.length !== 6) return null;
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16)
+    };
+  }
+
+  const brand = {
+    accent: cssColor('--accent-color', '#47b2e4'),
+    heading: cssColor('--heading-color', '#37517e'),
+    paper: cssColor('--surface-color', '#f4f7fb')
+  };
+
   /**
    * Apply .scrolled class to the body as the page is scrolled down
    */
@@ -503,7 +524,7 @@
           flash.setAttribute('opacity', '0');
         }
         const hot = Math.max(0, 1 - age / 260);
-        point.setAttribute('fill', hot > 0.35 ? '#ffffff' : '#47b2e4');
+        point.setAttribute('fill', hot > 0.35 ? '#ffffff' : brand.accent);
       }
     }
 
@@ -940,7 +961,7 @@
         b.el.setAttribute('cx', s.x.toFixed(1));
         b.el.setAttribute('cy', s.y.toFixed(1));
         b.el.setAttribute('r', (3.15 * Math.sqrt(b.sShown / S0) * pop * depth).toFixed(2));
-        b.el.setAttribute('fill', b.s > 0 ? '#47b2e4' : '#f4f7fb');
+        b.el.setAttribute('fill', b.s > 0 ? brand.accent : brand.paper);
       }
       const fadeIn = Math.min(1, sim / 0.4);
       const fadeOut = sim > HOLD_END ? Math.max(0, 1 - (sim - HOLD_END) / (FADE_END - HOLD_END)) : 1;
@@ -1420,7 +1441,7 @@
       dot.setAttribute('cx', point.x);
       dot.setAttribute('cy', point.y);
       dot.setAttribute('r', '6.5');
-      dot.setAttribute('fill', '#47b2e4');
+      dot.setAttribute('fill', brand.accent);
       dot.setAttribute('stroke', '#ffffff');
       dot.setAttribute('stroke-width', '1.6');
       const outwardX = point.x - center.x;
@@ -1431,7 +1452,7 @@
       text.setAttribute('y', point.y + (outwardY / outward) * 26);
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('dominant-baseline', 'middle');
-      text.setAttribute('fill', '#37517e');
+      text.setAttribute('fill', brand.heading);
       text.setAttribute('font-family', 'Jost, sans-serif');
       text.setAttribute('font-size', '18');
       text.setAttribute('font-weight', '600');
@@ -1453,9 +1474,11 @@
     }
 
     function edgeColor(t) {
-      const r = Math.round(55 + (71 - 55) * t);
-      const g = Math.round(81 + (178 - 81) * t);
-      const b = Math.round(126 + (228 - 126) * t);
+      const from = parseHex(brand.heading) || { r: 55, g: 81, b: 126 };
+      const to = parseHex(brand.accent) || { r: 71, g: 178, b: 228 };
+      const r = Math.round(from.r + (to.r - from.r) * t);
+      const g = Math.round(from.g + (to.g - from.g) * t);
+      const b = Math.round(from.b + (to.b - from.b) * t);
       return 'rgb(' + r + ',' + g + ',' + b + ')';
     }
 

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MY4WPFMMPD"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-MY4WPFMMPD');
+  </script>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Saint Martin Mathematics</title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <!-- Favicons -->
+  <link href="assets/img/favicon-v3.png" rel="icon">
+  <link href="assets/img/favicon-v3.png" rel="apple-touch-icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Jost:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="assets/css/main.css" rel="stylesheet">
+  <style>
+    /* Logo v3 palette sampled from logos_v3/1.png — navy, mid blue, tan, coral */
+    :root {
+      --background-color: #ffffff;
+      --default-color: #3a3f55;
+      --heading-color: #23295a;
+      --accent-color: #508fbd;
+      --surface-color: #ffffff;
+      --contrast-color: #ffffff;
+      --coral: #f6867a;
+      --tan: #8d6e5e;
+      --nav-color: #23295a;
+      --nav-hover-color: #508fbd;
+      --nav-dropdown-hover-color: #508fbd;
+      --nav-mobile-background-color: #ffffff;
+      --nav-dropdown-background-color: #ffffff;
+      --nav-dropdown-color: #3a3f55;
+    }
+
+    .header {
+      --background-color: #ffffff;
+      --heading-color: #23295a;
+      box-shadow: 0 1px 0 rgba(35, 41, 90, 0.08);
+    }
+
+    .index-page .header {
+      --background-color: #ffffff;
+      --heading-color: #23295a;
+      --nav-color: #23295a;
+    }
+
+    .index-page.scrolled .header {
+      --background-color: rgba(255, 255, 255, 0.96);
+    }
+
+    .header .logo {
+      min-width: 0;
+      flex: 1 1 auto;
+      max-width: calc(100% - 3.25rem);
+    }
+
+    .header .logo img {
+      max-height: 52px;
+      width: auto;
+      max-width: 100%;
+      height: auto;
+      margin-right: 0;
+      display: block;
+    }
+
+    .header .logo .logo-mobile {
+      display: none;
+    }
+
+    .header .logo .logo-desktop {
+      display: block;
+    }
+
+    /* Keep hamburger visible on light header; logo must not push it off-screen */
+    @media (max-width: 1199px) {
+      .header .container-fluid,
+      .header .container-xl {
+        padding-right: 3.25rem;
+      }
+
+      .header .logo .logo-desktop {
+        display: none;
+      }
+
+      .header .logo .logo-mobile {
+        display: block;
+      }
+
+      .header .logo img {
+        max-height: 48px;
+      }
+
+      .mobile-nav-toggle {
+        color: #23295a !important;
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10001;
+        margin-right: 0;
+      }
+
+      .mobile-nav-active .mobile-nav-toggle {
+        color: #ffffff !important;
+        top: 15px;
+        transform: none;
+      }
+    }
+
+    .hero {
+      background: #ffffff;
+      color: var(--default-color);
+    }
+
+    .hero .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-color);
+      margin-bottom: 0.75rem;
+    }
+
+    .hero .motto {
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .pricing .pricing-item ul i.bi-check {
+      color: var(--coral);
+    }
+
+    .section-title h2 {
+      color: var(--heading-color);
+    }
+
+    .light-background {
+      --background-color: #f4f6fa;
+      --surface-color: #ffffff;
+    }
+
+    .approach-item {
+      background: var(--surface-color);
+      border: 1px solid #e4e7ef;
+      border-radius: 0.5rem;
+      padding: 1.35rem 1.5rem;
+      height: 100%;
+    }
+
+    .approach-item strong {
+      display: block;
+      color: var(--heading-color);
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .approach-item span {
+      color: var(--default-color);
+    }
+  </style>
+</head>
+
+<body class="index-page">
+
+  <header id="header" class="header d-flex align-items-center fixed-top">
+    <div class="container-fluid container-xl position-relative d-flex align-items-center">
+      <a href="index_v3.html" class="logo d-flex align-items-center me-auto">
+        <img class="logo-desktop" src="assets/img/smms-logo-banner-v3-wide.png" alt="Saint Martin Mathematics">
+        <img class="logo-mobile" src="assets/img/smms-logo-banner-v3.png" alt="Saint Martin Mathematics">
+      </a>
+
+      <nav id="navmenu" class="navmenu">
+        <ul>
+          <li><a href="#home" class="active">Home</a></li>
+          <li><a href="#work">Work</a></li>
+          <li><a href="#approach">Approach</a></li>
+          <li><a href="#apps">Applications</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+        <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Hero Section -->
+    <section id="home" class="hero section">
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-lg-6 d-flex flex-column justify-content-center" data-aos="zoom-out">
+            <p class="eyebrow">Custom algorithms &amp; modeling</p>
+            <h1>From messy reality to software you can trust.</h1>
+            <p>Models and software for problems too difficult to solve on your own. Then algorithms and applications that help you act with confidence.</p>
+            <p class="motto">Helping you better understand your world.</p>
+          </div>
+          <div class="col-lg-6 hero-img" data-aos="zoom-out" data-aos-delay="200">
+            <svg id="hero-world" class="img-fluid" viewBox="0 0 640 640" width="640" height="640" role="img" aria-label="A globe.">
+              <title>A globe.</title>
+              <g clip-path="url(#hero-globe)" stroke="#23295a" stroke-width="1.35" opacity="0.35" fill="none">
+                <ellipse cx="320" cy="175" rx="150" ry="28"/>
+                <ellipse cx="320" cy="245" rx="196" ry="22"/>
+                <path d="M120 320 H520"/>
+                <ellipse cx="320" cy="395" rx="196" ry="22"/>
+                <ellipse cx="320" cy="465" rx="150" ry="28"/>
+                <ellipse cx="320" cy="320" rx="48" ry="200"/>
+                <ellipse cx="320" cy="320" rx="110" ry="200"/>
+                <ellipse cx="320" cy="320" rx="168" ry="200"/>
+                <path d="M320 120 V520"/>
+              </g>
+              <circle cx="320" cy="320" r="200" fill="none" stroke="#23295a" stroke-width="1.75" opacity="0.55"/>
+              <path d="M320 120 A88 200 0 0 1 320 520" fill="none" stroke="#23295a" stroke-width="2" opacity="0.4"/>
+              <g id="hero-anneal" hidden>
+                <path id="hero-anneal-path" fill="none" stroke="#508fbd" stroke-width="4.125" stroke-linecap="round" stroke-linejoin="round"/>
+                <g id="hero-anneal-points" fill="#508fbd" stroke="#ffffff" stroke-width="1.6">
+                  <circle cx="364" cy="146.8" r="6.5"/>
+                  <circle cx="407.7" cy="302.6" r="6.5"/>
+                  <circle cx="376.6" cy="473.2" r="6.5"/>
+                </g>
+              </g>
+              <g id="hero-scene" hidden>
+                <path id="hero-route" fill="none" stroke="#508fbd" stroke-width="4.125" stroke-linecap="round" stroke-linejoin="round"/>
+                <g id="hero-flashes" fill="none" stroke="#8d6e5e" stroke-width="1.6"></g>
+                <g id="hero-points" fill="#508fbd" stroke="#ffffff" stroke-width="1.6"></g>
+              </g>
+              <g id="hero-shear" hidden clip-path="url(#hero-globe)">
+                <path id="hero-shear-winds" fill="none" stroke="#8d6e5e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+                <path id="hero-shear-dye" fill="none" stroke="#508fbd" stroke-width="3.15" stroke-linecap="round" stroke-linejoin="round"/>
+                <g id="hero-shear-dots" stroke="#ffffff" stroke-width="1.35"></g>
+              </g>
+              <defs>
+                <clipPath id="hero-globe">
+                  <circle cx="320" cy="320" r="199"/>
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Work Section -->
+    <section id="work" class="pricing section light-background">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Work</h2>
+        <p>Proof first. Claims stay close to something you can inspect.</p>
+      </div>
+
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="100">
+            <div class="pricing-item featured">
+              <h3>Letting schedule optimization</h3>
+              <p>For a state transportation agency we assigned a year of construction projects to monthly bid lettings while holding district workload, project mix, and seasonal limits inside planning targets.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Genetic search over monthly assignments</span></li>
+                <li><i class="bi bi-check"></i> <span>Uncertainty analysis for bids and slippage</span></li>
+                <li><i class="bi bi-check"></i> <span>Reports and a planning application their staff could run again</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="200">
+            <div class="pricing-item">
+              <h3>Sensitivity analysis</h3>
+              <p>When a model’s answer has to be trusted, you need to know which inputs drive it and how far the answer moves when data shift.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Trace results back to the inputs that matter</span></li>
+                <li><i class="bi bi-check"></i> <span>Test small and large changes</span></li>
+                <li><i class="bi bi-check"></i> <span>Show where the result holds and where it moves</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="300">
+            <div class="pricing-item">
+              <h3>Optimization on GPUs</h3>
+              <p>Some problems gain enough structure that GPUs and paired methods change what can be solved in practice.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Problems selected for the structure the hardware can exploit</span></li>
+                <li><i class="bi bi-check"></i> <span>Numerical search paired with AI methods where they help</span></li>
+                <li><i class="bi bi-check"></i> <span>Implementations in use and still being extended</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approach Section -->
+    <section id="approach" class="pricing section">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Approach</h2>
+        <p>Custom algorithms are the center of gravity. Software is how the model reaches the people who use it.</p>
+      </div>
+
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-md-6 col-lg-3" data-aos="zoom-in" data-aos-delay="100">
+            <div class="approach-item">
+              <strong>Listen first</strong>
+              <span>We confirm the problem before we model or try to solve it.</span>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3" data-aos="zoom-in" data-aos-delay="150">
+            <div class="approach-item">
+              <strong>Model as accurately as required</strong>
+              <span>Size the model to the problem, not to a showcase method.</span>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3" data-aos="zoom-in" data-aos-delay="200">
+            <div class="approach-item">
+              <strong>Show the limits</strong>
+              <span>What the model handles well, what it does not, before anyone relies on it.</span>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3" data-aos="zoom-in" data-aos-delay="250">
+            <div class="approach-item">
+              <strong>Solve and hand back an action</strong>
+              <span>Algorithms, analysis, and practitioner applications when the model needs a home.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Applications Section -->
+    <section id="apps" class="pricing section light-background">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Applications</h2>
+        <p>Software we ship for specific domains. Separate product brands; same craft underneath.</p>
+      </div>
+
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="100">
+            <div class="pricing-item">
+              <h3><a href="https://agenseer.com" target="_blank" rel="noopener">AgenSeer</a></h3>
+              <p>Helping insurance companies better manage their agents’ book of business.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Agent performance analytics</span></li>
+                <li><i class="bi bi-check"></i> <span>Book of business management</span></li>
+                <li><i class="bi bi-check"></i> <span>Commission tracking</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="200">
+            <div class="pricing-item">
+              <h3><a href="https://workcastr.com" target="_blank" rel="noopener">Workcastr</a></h3>
+              <p>Capture work on a timeline, build period reports, and track goals tied to projects.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Timeline of plans and logs</span></li>
+                <li><i class="bi bi-check"></i> <span>Period reports you can share</span></li>
+                <li><i class="bi bi-check"></i> <span>Goals tied to projects</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="300">
+            <div class="pricing-item">
+              <h3>Stip Letter</h3>
+              <p>Planning application from the letting work — assign lettings and reason about risk.</p>
+              <ul>
+                <li><i class="bi bi-check"></i> <span>Monthly letting assignments</span></li>
+                <li><i class="bi bi-check"></i> <span>Uncertainty on bids and slippage</span></li>
+                <li><i class="bi bi-check"></i> <span>Practitioner tool staff can run again</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about section">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>About</h2>
+      </div>
+
+      <div class="container">
+        <div class="row gy-4 justify-content-center">
+          <div class="col-lg-8 content" data-aos="fade-up" data-aos-delay="100">
+            <p class="lead fs-4 mb-4">Some problems are too difficult to solve on your own — too tangled for a spreadsheet and too specific for off-the-shelf software. That is where we work.</p>
+            <p class="fs-5">We listen until the problem is clear, translate it into a model as accurate as it needs to be, and explain what the model can and cannot do before anyone relies on it. Then we build the analysis and software that put it to work, and we hand back results that tell you what to act on next.</p>
+          </div>
+          <div class="col-lg-10" data-aos="fade-up" data-aos-delay="200">
+            <svg id="about-model" class="img-fluid" viewBox="0 0 1080 320" width="1080" height="320" role="img" aria-label="Spaghetti lines give way to six points. Those same lines straighten into a wide hexagon, and one stroke walks the boundary.">
+              <title>Spaghetti lines give way to six points. Those same lines straighten into a wide hexagon, and one stroke walks the boundary.</title>
+              <g id="about-spaghetti" fill="none" stroke="#23295a" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"></g>
+              <path id="about-walk" fill="none" stroke="#23295a" stroke-width="4.125" stroke-linecap="round" stroke-linejoin="round"/>
+              <g id="about-points"></g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact section light-background">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Contact</h2>
+        <p>Happy to field questions about modeling work or the applications.</p>
+      </div>
+
+      <div class="container" data-aos="fade-up" data-aos-delay="100">
+        <div class="row justify-content-center">
+          <div class="col-lg-6">
+            <div class="info-item d-flex" data-aos="fade-up" data-aos-delay="400">
+              <i class="bi bi-envelope flex-shrink-0"></i>
+              <div>
+                <h3>For sales questions:</h3>
+                <p><a href="mailto:sales@smmaths.com">sales@smmaths.com</a></p>
+              </div>
+            </div>
+
+            <div class="info-item d-flex" data-aos="fade-up" data-aos-delay="400">
+              <i class="bi bi-envelope flex-shrink-0"></i>
+              <div>
+                <h3>For support questions:</h3>
+                <p><a href="mailto:support@smmaths.com">support@smmaths.com</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer" class="footer">
+    <div class="container copyright text-center mt-4">
+      <p>© <span>Copyright</span> <strong class="px-1 sitename">Saint Martin Mathematics</strong> <span>All Rights Reserved</span></p>
+      <div class="credits">
+        Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Preloader -->
+  <div id="preloader"></div>
+
+  <!-- Vendor JS Files -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/php-email-form/validate.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+  <script src="assets/vendor/waypoints/noframework.waypoints.js"></script>
+  <script src="assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
+  <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+
+  <!-- Main JS File -->
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
