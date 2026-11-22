@@ -134,19 +134,50 @@
       color: var(--default-color);
     }
 
-    .hero .eyebrow {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent-color);
-      margin-bottom: 0.75rem;
-    }
-
     .hero .motto {
       color: var(--accent-color);
       font-weight: 600;
-      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero .hero-cta {
+      margin-top: 1.15rem;
+    }
+
+    /* The globe is centered in a square canvas. On a phone that empty band
+       reads as a gap under the motto. Pull the canvas up without changing desktop. */
+    @media (max-width: 991.98px) {
+      .hero {
+        min-height: 0;
+        align-items: flex-start;
+        padding-bottom: 0;
+      }
+
+      .hero .row {
+        --bs-gutter-y: 0.25rem;
+      }
+
+      .hero h1 {
+        font-size: 26px;
+        line-height: 1.25;
+      }
+
+      .hero p:not(.motto) {
+        font-weight: 400;
+        line-height: 1.5;
+        margin-bottom: 0.5rem;
+      }
+
+      .hero .hero-cta {
+        text-align: center;
+      }
+
+      .hero .hero-img {
+        margin-top: -3%;
+        margin-bottom: -14%;
+      }
     }
 
     .pricing .pricing-item ul i.bi-check {
@@ -212,10 +243,12 @@
       <div class="container">
         <div class="row gy-4">
           <div class="col-lg-6 d-flex flex-column justify-content-center" data-aos="zoom-out">
-            <p class="eyebrow">Custom algorithms &amp; modeling</p>
-            <h1>From messy reality to solutions you can trust.</h1>
-            <p>Models and software for problems too difficult to solve on your own. Then algorithms and applications that help you act with confidence.</p>
             <p class="motto">Helping you better understand your world.</p>
+            <h1>From messy reality to solutions you can trust.</h1>
+            <p>We build models for problems too difficult to solve on your own, then the algorithms and applications that help you act with confidence.</p>
+            <div class="hero-cta">
+              <a class="btn-get-started" href="#contact">Talk through a problem</a>
+            </div>
           </div>
           <div class="col-lg-6 hero-img" data-aos="zoom-out" data-aos-delay="200">
             <svg id="hero-world" class="img-fluid" viewBox="0 0 640 640" width="640" height="640" role="img" aria-label="A globe.">
@@ -266,7 +299,7 @@
     <section id="work" class="pricing section light-background">
       <div class="container section-title" data-aos="fade-up">
         <h2>Work</h2>
-        <p>Here is what that looks like in practice: hard problems, careful models, and software people could put to work.</p>
+        <p>Here is what that looks like in practice: hard problems, careful models, and software people can put to work.</p>
       </div>
 
       <div class="container">
@@ -351,7 +384,7 @@
     <section id="apps" class="pricing section light-background">
       <div class="container section-title" data-aos="fade-up">
         <h2>Applications</h2>
-        <p>Software we ship for specific domains. Separate product brands; same craft underneath.</p>
+        <p>We ship software for specific domains, under separate product brands, with the same craft underneath.</p>
       </div>
 
       <div class="container">
@@ -359,7 +392,7 @@
           <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="100">
             <div class="pricing-item">
               <h3><a href="https://agenseer.com" target="_blank" rel="noopener">AgenSeer</a></h3>
-              <p>Helping insurance companies better manage their agents’ book of business.</p>
+              <p>AgenSeer helps insurance companies manage their agents’ book of business.</p>
               <ul>
                 <li><i class="bi bi-check"></i> <span>Agent performance analytics</span></li>
                 <li><i class="bi bi-check"></i> <span>Book of business management</span></li>
@@ -371,7 +404,7 @@
           <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="200">
             <div class="pricing-item">
               <h3><a href="https://workcastr.com" target="_blank" rel="noopener">Workcastr</a></h3>
-              <p>Capture work on a timeline, build period reports, and track goals tied to projects.</p>
+              <p>Workcastr captures work on a timeline, builds period reports, and tracks goals tied to projects.</p>
               <ul>
                 <li><i class="bi bi-check"></i> <span>Timeline of plans and logs</span></li>
                 <li><i class="bi bi-check"></i> <span>Period reports you can share</span></li>
@@ -383,7 +416,7 @@
           <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="300">
             <div class="pricing-item">
               <h3>Stip Letter</h3>
-              <p>Planning application from the letting work — assign lettings and reason about risk.</p>
+              <p>Stip Letter is the planning application from the letting work, so staff can assign lettings and reason about risk.</p>
               <ul>
                 <li><i class="bi bi-check"></i> <span>Monthly letting assignments</span></li>
                 <li><i class="bi bi-check"></i> <span>Uncertainty on bids and slippage</span></li>
@@ -423,7 +456,7 @@
     <section id="contact" class="contact section light-background">
       <div class="container section-title" data-aos="fade-up">
         <h2>Contact</h2>
-        <p>Happy to field questions about modeling work or the applications.</p>
+        <p>We are happy to field questions about modeling work or the applications.</p>
       </div>
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
