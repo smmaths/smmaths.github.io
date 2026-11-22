@@ -211,6 +211,33 @@
     .approach-item span {
       color: var(--default-color);
     }
+
+    .about .about-steps {
+      list-style: disc;
+      padding-left: 1.25rem;
+      margin: 0;
+    }
+
+    .about .about-steps li {
+      display: list-item;
+      margin: 0 0 0.4rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.35rem;
+      color: #6d7390;
+      font-size: 1.25rem;
+      line-height: 1.45;
+      transition: color 0.4s ease, background-color 0.4s ease;
+    }
+
+    .about .about-steps li.is-active {
+      color: var(--heading-color);
+      font-weight: 600;
+      background: rgba(80, 143, 189, 0.12);
+    }
+
+    .about .about-steps li.is-active::marker {
+      color: var(--accent-color);
+    }
   </style>
 </head>
 
@@ -437,8 +464,12 @@
       <div class="container">
         <div class="row gy-4 justify-content-center">
           <div class="col-lg-8 content" data-aos="fade-up" data-aos-delay="100">
-            <p class="lead fs-4 mb-4">Some problems are too difficult to solve on your own — too tangled for a spreadsheet and too specific for off-the-shelf software. That is where we work.</p>
-            <p class="fs-5">We listen until the problem is clear, translate it into a model as accurate as it needs to be, and explain what the model can and cannot do before anyone relies on it. Then we build the analysis and software that put it to work, and we hand back results that tell you what to act on next.</p>
+            <ul class="about-steps" id="about-steps">
+              <li class="is-active" aria-current="step">We take a noisy problem</li>
+              <li>We find the model behind it</li>
+              <li>We develop algorithms and software to solve it</li>
+              <li>We give you those tools to solve your problem repeatedly</li>
+            </ul>
           </div>
           <div class="col-lg-10" data-aos="fade-up" data-aos-delay="200">
             <svg id="about-model" class="img-fluid" viewBox="0 0 1080 320" width="1080" height="320" role="img" aria-label="Spaghetti lines give way to six points. Those same lines straighten into a wide hexagon, and one stroke walks the boundary.">

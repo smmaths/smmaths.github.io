@@ -1318,12 +1318,15 @@
       { x: 340, y: 248 }
     ];
     const center = { x: 540, y: 155 };
+    const repeatRuns = document.querySelector('#about-steps') ? 3 : 0;
     const phases = [
       { name: 'spaghetti', ms: 2200 },
       { name: 'find', ms: 3200 },
       { name: 'resolve', ms: 4200 },
-      { name: 'walk', ms: 2200 },
-      { name: 'hold', ms: 1400 },
+      { name: 'walk', ms: repeatRuns ? 6600 : 2200 },
+      repeatRuns
+        ? { name: 'repeat', ms: 2200 * repeatRuns, runs: repeatRuns }
+        : { name: 'hold', ms: 1400 },
       { name: 'return', ms: 1600 }
     ];
 
@@ -1467,6 +1470,32 @@
     aboutWalk.setAttribute('d', pts.map((point, index) => (index === 0 ? 'M' : 'L') + point.x + ' ' + point.y).join(' ') + ' Z');
     walkLength = aboutWalk.getTotalLength();
     aboutWalk.style.opacity = '0';
+    const repeatColor = cssColor('--coral', '#f6867a');
+    const walkArrow = document.createElementNS(svgNS, 'polygon');
+    walkArrow.setAttribute('points', '0,0 -32,-14 -32,14');
+    walkArrow.setAttribute('fill', brand.heading);
+    walkArrow.setAttribute('opacity', '0');
+    aboutSvg.appendChild(walkArrow);
+
+    function placeWalkArrow(show, distance) {
+      if (!show) {
+        walkArrow.setAttribute('opacity', '0');
+        return;
+      }
+      const d = Math.max(0, Math.min(distance, walkLength));
+      const tip = aboutWalk.getPointAtLength(d);
+      let angle;
+      if (d < 12) {
+        const ahead = aboutWalk.getPointAtLength(Math.min(walkLength, d + 12));
+        angle = Math.atan2(ahead.y - tip.y, ahead.x - tip.x);
+      } else {
+        const back = aboutWalk.getPointAtLength(d - 12);
+        angle = Math.atan2(tip.y - back.y, tip.x - back.x);
+      }
+      walkArrow.setAttribute('fill', brand.heading);
+      walkArrow.setAttribute('opacity', '1');
+      walkArrow.setAttribute('transform', 'translate(' + tip.x.toFixed(1) + ' ' + tip.y.toFixed(1) + ') rotate(' + (angle * 180 / Math.PI).toFixed(1) + ')');
+    }
 
     function smoothstep(u) {
       const t = Math.max(0, Math.min(1, u));
@@ -1516,8 +1545,32 @@
       aboutWalk.style.opacity = '0';
     }
 
+    const aboutSteps = document.querySelectorAll('#about-steps li');
+    const aboutStepForPhase = {
+      spaghetti: 0,
+      find: 1,
+      resolve: 1,
+      walk: 2,
+      hold: 3,
+      repeat: 3,
+      return: 0
+    };
+    let aboutStepShown = -1;
+
+    function highlightAboutStep(index) {
+      if (!aboutSteps.length || index === aboutStepShown) return;
+      aboutStepShown = index;
+      aboutSteps.forEach((step, i) => {
+        const on = i === index;
+        step.classList.toggle('is-active', on);
+        if (on) step.setAttribute('aria-current', 'step');
+        else step.removeAttribute('aria-current');
+      });
+    }
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       showHexagon();
+      highlightAboutStep(3);
     } else {
       let phaseIndex = 0;
       let phaseStarted = 0;
@@ -1540,6 +1593,7 @@
           elapsed = 0;
         }
         const phase = phases[phaseIndex];
+        highlightAboutStep(aboutStepForPhase[phase.name]);
         const u = elapsed / phase.ms;
         const eased = smoothstep(u);
         let settle = 0;
@@ -1547,6 +1601,8 @@
         let pointCount = 0;
         let walkOpacity = 0;
         let walkOffset = walkLength;
+        let showArrow = false;
+        let arrowDistance = 0;
 
         if (phase.name === 'spaghetti') {
           settle = 0;
@@ -1565,6 +1621,18 @@
           pointCount = 6;
           walkOpacity = 1;
           walkOffset = walkLength * (1 - u);
+          aboutWalk.setAttribute('stroke', brand.heading);
+          showArrow = repeatRuns > 0;
+          arrowDistance = walkLength * u;
+        } else if (phase.name === 'repeat') {
+          settle = 1;
+          noiseOpacity = 0;
+          pointCount = 6;
+          walkOpacity = 1;
+          const runs = phase.runs || 3;
+          const lap = (Math.min(u, 0.9999) * runs) % 1;
+          walkOffset = walkLength * (1 - lap);
+          aboutWalk.setAttribute('stroke', repeatColor);
         } else if (phase.name === 'hold') {
           settle = 1;
           noiseOpacity = 0;
@@ -1584,6 +1652,7 @@
         aboutWalk.style.strokeDasharray = String(walkLength);
         aboutWalk.style.strokeDashoffset = String(walkOffset);
         aboutWalk.style.opacity = String(walkOpacity);
+        placeWalkArrow(showArrow, arrowDistance);
         rafId = window.requestAnimationFrame(frame);
       }
 
